@@ -1,0 +1,3 @@
+[submodule "Bomberman"]
+	path = Bomberman
+	url = https://github.com/milselarch/Bomberman
