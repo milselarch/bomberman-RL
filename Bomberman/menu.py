@@ -81,7 +81,7 @@ def main_background():
 def menu_loop():
     pygame.init()
 
-    pygame.display.set_caption('Bombermans')
+    pygame.display.set_caption('Bomberman')
     clock = pygame.time.Clock()
 
     menu_theme = pygame_menu.Theme(
