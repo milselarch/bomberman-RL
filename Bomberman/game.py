@@ -2,6 +2,8 @@ import pygame
 import sys
 import random
 
+from pygame import Surface
+
 from enums.power_up_type import PowerUpType
 from player import Player
 from explosion import Explosion
@@ -139,8 +141,14 @@ class BaseGame(object):
 
 
 class Game(BaseGame):
-    def __init__(self, *args, **kwargs):
-        super(Game, self).__init__(*args, **kwargs)
+    def __init__(
+        self, *args, surface: Surface, scale: int,
+        show_path=True, **kwargs
+    ):
+        super(Game, self).__init__(*args, **kwargs, scale=scale)
+        self.surface = surface
+        self.show_path = show_path
+        self.scale = scale
         self.font = None
 
         self.grass_img = pygame.image.load('images/terrain/grass.png')
@@ -308,10 +316,18 @@ class Game(BaseGame):
         pygame.display.update()
 
     def start(self):
-        raise NotImplementedError
+        self.main(
+            s=self.surface, tile_size=self.scale,
+            show_path=self.show_path,
+            terrain_images=self.terrain_images,
+            bomb_images=self.bomb_images,
+            explosion_images=self.explosion_images,
+            power_ups_images=self.power_ups_images
+        )
 
     def main(
-        self, s, tile_size, show_path, terrain_images, bomb_images,
+        self, s: Surface, tile_size: int, show_path: bool,
+        terrain_images, bomb_images,
         explosion_images, power_ups_images
     ):
         # power_ups.append(PowerUp(1, 2, PowerUpType.BOMB))

@@ -26,9 +26,11 @@ en2_alg = Algorithm.DFS
 en3_alg = Algorithm.DIJKSTRA
 show_path = True
 surface = pygame.display.set_mode(WINDOW_SIZE)
+pygame.init()
 
 game_env = Game(
-    player_alg, en1_alg, en2_alg, en3_alg, TILE_SIZE
+    player_alg, en1_alg, en2_alg, en3_alg,
+    surface=surface, scale=TILE_SIZE
 )
 
 
@@ -58,19 +60,7 @@ def change_enemy3(value, c):
 
 
 def run_game():
-    """
-    game.game_init(
-        surface, show_path, player_alg, en1_alg,
-        en2_alg, en3_alg, TILE_SIZE
-    )
-    """
-    """
-    game_env.main(
-        surface, TILE_SIZE, True, 
-        
-    )
-    """
-    raise NotImplementedError
+    game_env.start()
 
 
 def main_background():
@@ -79,7 +69,7 @@ def main_background():
 
 
 def menu_loop():
-    pygame.init()
+    # pygame.init()
 
     pygame.display.set_caption('Bomberman')
     clock = pygame.time.Clock()
