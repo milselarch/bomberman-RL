@@ -1,7 +1,10 @@
+from typing import Optional
+
 import pygame
 import sys
 import random
 
+from gym import Env, spaces
 from pygame import Surface
 
 from enums.power_up_type import PowerUpType
@@ -41,16 +44,18 @@ power_ups = []
 """
 
 
-class BaseGame(object):
+class BaseGame(Env):
     def __init__(
         self, player_alg, en1_alg, en2_alg, en3_alg, scale
     ):
+        super().__init__()
         self.player_alg = player_alg
         self.en1_alg = en1_alg
         self.en2_alg = en2_alg
         self.en3_alg = en3_alg
         self.scale = scale
 
+        self.action_space = spaces.Discrete(start=0, n=5)
         self.player = None
         self.en0 = None
         self.en1 = None
@@ -64,7 +69,10 @@ class BaseGame(object):
         self.power_ups = []
         self.grid = []
 
-    def reset(self):
+    def reset(
+        self, seed: Optional[int] = None,
+        options: Optional[int] = None
+    ):
         self.enemy_list = []
         self.ene_blocks = []
         self.bombs.clear()
@@ -222,7 +230,10 @@ class Game(BaseGame):
 
         self.reset()
 
-    def reset(self):
+    def reset(
+        self, seed: Optional[int] = None,
+        options: Optional[int] = None
+    ):
         self.font = pygame.font.SysFont('Bebas', self.scale)
         super().reset()
 
@@ -237,6 +248,9 @@ class Game(BaseGame):
             self.player.load_animations(self.scale)
         if self.en0 is not None:
             self.en0.load_animations('', self.scale)
+
+    def step(self, action_no):
+        raise NotImplementedError
 
     def draw(
         self, s, grid, tile_size, show_path, game_ended, terrain_images,
@@ -330,6 +344,7 @@ class Game(BaseGame):
         terrain_images, bomb_images,
         explosion_images, power_ups_images
     ):
+        self.reset()
         # power_ups.append(PowerUp(1, 2, PowerUpType.BOMB))
         # power_ups.append(PowerUp(2, 1, PowerUpType.FIRE))
         clock = pygame.time.Clock()

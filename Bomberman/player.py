@@ -1,8 +1,20 @@
+from typing import Dict
+
 import pygame
 import math
 
 from bomb import Bomb
 from enums.power_up_type import PowerUpType
+from enum import IntEnum
+from gym import Env, spaces
+
+
+class Actions(IntEnum):
+    MOVE_DOWN = 0
+    MOVE_RIGHT = 1
+    MOVE_UP = 2
+    MOVE_LEFT = 3
+    DROP_BOMB = 4
 
 
 class Player:
@@ -37,10 +49,19 @@ class Player:
         self.range = 3
         self.bomb_limit = 1
 
+    @staticmethod
+    def get_action_meanings() -> Dict[int, Actions]:
+        enum_values = list(Actions)
+        action_meanings = {}
+
+        for enum in enum_values:
+            action_meanings[int(enum)] = enum
+
+        return action_meanings
+
     def move(self, dx, dy, grid, enemies, power_ups):
         tempx = int(self.pos_x / Player.TILE_SIZE)
         tempy = int(self.pos_y / Player.TILE_SIZE)
-
         map = []
 
         for i in range(len(grid)):

@@ -84,7 +84,6 @@ def menu_loop():
         widget_font_size=int(TILE_SIZE*0.7),
         background_color=MENU_BACKGROUND_COLOR,
         title_background_color=MENU_TITLE_COLOR,
-
     )
 
     play_menu = pygame_menu.Menu(
