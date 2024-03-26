@@ -23,6 +23,7 @@ class Player:
         tempx = int(self.pos_x / Player.TILE_SIZE)
         tempy = int(self.pos_y / Player.TILE_SIZE)
 
+        # map = grid.copy()
         map = []
 
         for i in range(len(grid)):

@@ -1,4 +1,5 @@
 import random
+import time
 import numpy as np
 import pygame
 import matplotlib.pyplot as plt
@@ -7,7 +8,7 @@ from player import Player
 from enemy import Enemy
 from explosion import Explosion
 
-GRID_BASE = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+GRID_BASE_LIST = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
              [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
              [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
              [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -21,6 +22,9 @@ GRID_BASE = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
              [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
              [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]]
 
+GRID_BASE = np.array(GRID_BASE_LIST)
+
+
 class BombermanEnv(object):
     def __init__(self, surface, path, 
                     player_alg, en1_alg, en2_alg, 
@@ -30,14 +34,30 @@ class BombermanEnv(object):
         self.path = path
         self.scale = scale
 
-        self.grid = [row[:] for row in GRID_BASE]
-        print("BEFORE: ", self.grid)
-        self.generateMap()
-        print("AFTER: ", self.grid)
-
-        self.grid = np.array(self.grid)
+        # self.grid = [row[:] for row in GRID_BASE]
         
-        self.MAX_VAL_IN_GRID = 3    # 1 is for indestructable walls, 2 is for destructable walls, 3 is for bombs, so 3 is the max value I know 
+        self.grid = GRID_BASE.copy()
+        self.generateMap()
+        # self.grid = np.array(self.grid)
+        self.gridState = self.grid.copy()
+        
+        self.WALL_GRID_VAL = 1
+        self.BOX_GRID_VAL = 2
+        self.BOMB_GRID_VAL = 3
+        self.EXPLOSION_GRID_VAL = 9
+        self.ENEMY_GRID_VAL = 4
+        self.PLAYER_GRID_VAL = 5
+        # 1 is for indestructable walls
+        # 2 is for destructable walls
+        # 3 is for bombs
+        # 4 for enemies
+        # 5 for player
+        # 4+3=7 for enemy dropping bomb
+        # 5+3=8 for player dropping bomb
+        # 9 for explosion. 
+        # So max is 9.
+        self.MAX_VAL_IN_GRID = self.EXPLOSION_GRID_VAL  
+
         self.m = len(self.grid)     # Height of whole map, ie. no. of rows
         self.n = len(self.grid[0])  # Width of whole map, ie. no. of columns/fields in each row
         self.stateShape = (self.m, self.n, 1)
@@ -52,11 +72,6 @@ class BombermanEnv(object):
         pygame.init()
         self.font = pygame.font.SysFont('Arial', scale)
         
-
-        self.enemyList = []
-        self.player = Player()
-        self.enemyBlocks = []
-
         self.explosions = []
         self.bombs = []
         self.powerUps = []
@@ -64,14 +79,27 @@ class BombermanEnv(object):
         self.explosions.clear()
         self.powerUps.clear()
 
+        self.enemyList = []
+        self.enemyBlocks = []
+        self.enemiesPrevGridPosX = []
+        self.enemiesPrevGridPosY = []
+
         self.player = Player()
-        self.playerPrevPosX = self.player.pos_x
-        self.playerPrevPosY = self.player.pos_y
+        self.playerPrevGridPosX = int(self.player.pos_x / Player.TILE_SIZE) 
+        self.playerPrevGridPosY = int(self.player.pos_y / Player.TILE_SIZE)
+        self.playerDirection_X = 0
+        self.playerDirection_Y = 0
+        self.playerMoving = False
+        self.playerMovingAction = ''
+        self.currentPlayerDirection = 0
+        self.playerNextGridPos_X = None
+        self.playerNextGridPos_Y = None
+
         self.stepsPlayerInSamePos = 0
-        self.destGridSqX = self.player.pos_x
-        self.destGridSqY = self.player.pos_y
-        self.hasNoDestinationGrid = True
-        self.toDestGridAction = ''
+        # self.destGridSqX = self.player.pos_x
+        # self.destGridSqY = self.player.pos_y
+        # self.hasNoDestinationGrid = True
+        # self.toDestGridAction = ''
 
         self.en1_alg = en1_alg
         self.en2_alg = en2_alg
@@ -83,32 +111,40 @@ class BombermanEnv(object):
             en1.load_animations('1', self.scale)
             self.enemyList.append(en1)
             self.enemyBlocks.append(en1)
+            self.enemiesPrevGridPosX.append(int(en1.pos_x / Enemy.TILE_SIZE))
+            self.enemiesPrevGridPosY.append(int(en1.pos_y / Enemy.TILE_SIZE))
 
         if self.en2_alg is not Algorithm.NONE:
             en2 = Enemy(1, 11, self.en2_alg )
             en2.load_animations('2', self.scale)
             self.enemyList.append(en2)
             self.enemyBlocks.append(en2)
+            self.enemiesPrevGridPosX.append(int(en2.pos_x / Enemy.TILE_SIZE))
+            self.enemiesPrevGridPosY.append(int(en2.pos_y / Enemy.TILE_SIZE))
 
         if self.en3_alg is not Algorithm.NONE:
             en3 = Enemy(11, 1, self.en3_alg)
             en3.load_animations('3', self.scale)
             self.enemyList.append(en3)
             self.enemyBlocks.append(en3)
+            self.enemiesPrevGridPosX.append(int(en3.pos_x / Enemy.TILE_SIZE))
+            self.enemiesPrevGridPosY.append(int(en3.pos_y / Enemy.TILE_SIZE))
 
         if self.player_alg is Algorithm.PLAYER:
             self.player.load_animations(self.scale)
             self.enemyBlocks.append(self.player)
-        elif self.player_alg is not Algorithm.NONE:
-            en0 = Enemy(1, 1, self.player_alg)
-            en0.load_animations('', self.scale)
-            self.enemyList.append(en0)
-            self.enemyBlocks.append(en0)
-            self.player.life = False
+        # elif self.player_alg is not Algorithm.NONE:
+        #     en0 = Enemy(1, 1, self.player_alg)
+        #     en0.load_animations('', self.scale)
+        #     self.enemyList.append(en0)
+        #     self.enemyBlocks.append(en0)
+        #     self.player.life = False
         else:
             self.player.life = False
 
-        
+        self.setPlayerInGrid()
+        self.setEnemiesInGrid()
+
         grass_img = pygame.image.load('images/terrain/grass.png')
         grass_img = pygame.transform.scale(grass_img, (scale, scale))
 
@@ -147,6 +183,7 @@ class BombermanEnv(object):
         power_up_fire_img = pygame.transform.scale(power_up_fire_img, (scale, scale))
 
         self.powerUpsImages = [power_up_bomb_img, power_up_fire_img]
+        
 
     def draw(self):
         ############################################
@@ -156,6 +193,7 @@ class BombermanEnv(object):
         BACKGROUND_COLOR = (107, 142, 35)
 
         self.surface.fill(BACKGROUND_COLOR)
+
         for i in range(len(self.grid)):
             for j in range(len(self.grid[i])):
                 self.surface.blit(self.terrainImages[self.grid[i][j]], (i * self.scale, j * self.scale, self.scale, self.scale))
@@ -208,6 +246,44 @@ class BombermanEnv(object):
                     self.grid[i][j] = 2
         return
   
+    def setEnemiesInGrid(self):
+        for i in range(len(self.enemyList)):
+            self.gridState[self.enemiesPrevGridPosX[i]][self.enemiesPrevGridPosY[i]] -= self.ENEMY_GRID_VAL
+            if self.gridState[self.enemiesPrevGridPosX[i]][self.enemiesPrevGridPosY[i]] < 0:
+                self.gridState[self.enemiesPrevGridPosX[i]][self.enemiesPrevGridPosY[i]] = 0
+            self.enemiesPrevGridPosX[i] = (int(self.enemyList[i].pos_x / Enemy.TILE_SIZE))
+            self.enemiesPrevGridPosY[i] = (int(self.enemyList[i].pos_y / Enemy.TILE_SIZE))
+            self.gridState[self.enemiesPrevGridPosX[i]][self.enemiesPrevGridPosY[i]] += self.ENEMY_GRID_VAL
+
+    def clearEnemyFromGrid(self, enemy):
+        enemyGridPosX = (int(enemy.pos_x / Enemy.TILE_SIZE))
+        enemyGridPosY = (int(enemy.pos_y / Enemy.TILE_SIZE))
+        if self.gridState[enemyGridPosX][enemyGridPosY] >= self.ENEMY_GRID_VAL:
+            self.gridState[enemyGridPosX][enemyGridPosY] -= self.ENEMY_GRID_VAL
+
+    def setPlayerInGrid(self):
+        self.gridState[self.playerPrevGridPosX][self.playerPrevGridPosY] -= self.PLAYER_GRID_VAL
+        if self.gridState[self.playerPrevGridPosX][self.playerPrevGridPosY] < 0:
+            self.gridState[self.playerPrevGridPosX][self.playerPrevGridPosY] = 0
+        self.playerPrevGridPosX = int(self.player.pos_x / Player.TILE_SIZE) 
+        self.playerPrevGridPosY = int(self.player.pos_y / Player.TILE_SIZE)
+        self.gridState[self.playerPrevGridPosX][self.playerPrevGridPosY] += self.PLAYER_GRID_VAL
+    
+    def clearPlayerFromGrid(self):
+        if self.gridState[self.playerPrevGridPosX][self.playerPrevGridPosY] >= self.PLAYER_GRID_VAL:
+            self.gridState[self.playerPrevGridPosX][self.playerPrevGridPosX] -= self.PLAYER_GRID_VAL
+
+    def setExplosionsInGrid(self):
+        for i in range(len(self.explosions)):
+            for gridCoordsTuple in self.explosions[i].sectors:
+                self.gridState[gridCoordsTuple[0]][gridCoordsTuple[1]] = self.EXPLOSION_GRID_VAL
+
+    def clearExplosionFromGrid(self, explosionObj):
+        for gridCoordsTuple in explosionObj.sectors:
+                # Set to 0 as nothing should be left if the explosion occurred on the grid square
+                self.gridState[gridCoordsTuple[0]][gridCoordsTuple[1]] = 0
+
+
     def isGameEnded(self):
         if not self.player.life:
             return True
@@ -223,18 +299,30 @@ class BombermanEnv(object):
             if bomb.time < 1:
                 bomb.bomber.bomb_limit += 1
                 self.grid[bomb.pos_x][bomb.pos_y] = 0
+                self.gridState[bomb.pos_x][bomb.pos_y] -= self.BOMB_GRID_VAL
+                if self.gridState[bomb.pos_x][bomb.pos_y] < 0:
+                    self.gridState[bomb.pos_x][bomb.pos_y] = 0
+
                 explosion = Explosion(bomb.pos_x, bomb.pos_y, bomb.range)
                 explosion.explode(self.grid, self.bombs, bomb, self.powerUps)
                 explosion.clear_sectors(self.grid, np.random, self.powerUps)
                 self.explosions.append(explosion)
+                self.setExplosionsInGrid()
         if self.player not in self.enemyList:
             self.player.check_death(self.explosions)
+            if not self.player.life:
+                self.clearPlayerFromGrid()
+
         for enemy in self.enemyList:
             enemy.check_death(self.explosions)
+            if not enemy.life:
+                self.clearEnemyFromGrid(enemy)
+
         for explosion in self.explosions:
             explosion.update(dt)
             if explosion.time < 1:
                 self.explosions.remove(explosion)
+                self.clearExplosionFromGrid(explosion)
 
     def checkIfInBombRange(self):
         playerPosX = self.player.pos_x
@@ -348,6 +436,22 @@ class BombermanEnv(object):
         else:
             return False
     
+    def checkIfTrappedWithBomb(self):
+        playerPosX = self.player.pos_x
+        playerPosY = self.player.pos_y
+        top = self.grid[int(playerPosX / Player.TILE_SIZE)][int(playerPosY / Player.TILE_SIZE) - 1]
+        bottom = self.grid[int(playerPosX / Player.TILE_SIZE)][int(playerPosY / Player.TILE_SIZE) + 1]
+        left = self.grid[int(playerPosX / Player.TILE_SIZE) + 1][int(playerPosY / Player.TILE_SIZE)]
+        right = self.grid[int(playerPosX / Player.TILE_SIZE) - 1][int(playerPosY / Player.TILE_SIZE)]
+
+        if (top == 1 or top == 2 or top == 3) and \
+            (bottom == 1 or bottom == 2 or bottom == 3) and \
+            (left == 1 or left == 2 or left == 3) and \
+            (right == 1 or right == 2 or right == 3):
+            return True
+        else:
+            return False
+    
     def checkIfWalkableSpace(self, action):
         playerPosX = self.player.pos_x
         playerPosY = self.player.pos_y
@@ -374,51 +478,51 @@ class BombermanEnv(object):
         else:
             return False
         
-    def checkIfReachedDestSq(self, action):
-        playerPosX = self.player.pos_x
-        playerPosY = self.player.pos_y
-        destSqPosX = self.destGridSqX
-        destSqPosY = self.destGridSqY
+    # def checkIfReachedDestSq(self, action):
+    #     playerPosX = self.player.pos_x
+    #     playerPosY = self.player.pos_y
+    #     destSqPosX = self.destGridSqX
+    #     destSqPosY = self.destGridSqY
 
-        if int(playerPosX / Player.TILE_SIZE) == int(destSqPosX / Player.TILE_SIZE) and int(playerPosY / Player.TILE_SIZE) == int(destSqPosY / Player.TILE_SIZE):
-            self.hasNoDestinationGrid = True
+    #     if int(playerPosX / Player.TILE_SIZE) == int(destSqPosX / Player.TILE_SIZE) and int(playerPosY / Player.TILE_SIZE) == int(destSqPosY / Player.TILE_SIZE):
+    #         self.hasNoDestinationGrid = True
             
-            # # If just reached in this action, then set destGrid
-            # self.destGridSqX = self.player.pos_x
-            # self.destGridSqY = self.player.pos_y
-        else:
-            self.hasNoDestinationGrid = False
+    #         # # If just reached in this action, then set destGrid
+    #         # self.destGridSqX = self.player.pos_x
+    #         # self.destGridSqY = self.player.pos_y
+    #     else:
+    #         self.hasNoDestinationGrid = False
 
-        if self.hasNoDestinationGrid and (playerPosX != destSqPosX or playerPosY != destSqPosY):
-            # If player is in the destination grid, but its exact position is not 
-            x = 0
-            y = 0
-            if action == 'D':
-                y = 1
-            elif action == 'R':
-                x = 1
-            elif action == 'U':
-                y = -1
-            elif action == 'L':
-                x = -1
+    #     if self.hasNoDestinationGrid and (playerPosX != destSqPosX or playerPosY != destSqPosY):
+    #         # If player is in the destination grid, but its exact position is not 
+    #         x = 0
+    #         y = 0
+    #         if action == 'D':
+    #             y = 1
+    #         elif action == 'R':
+    #             x = 1
+    #         elif action == 'U':
+    #             y = -1
+    #         elif action == 'L':
+    #             x = -1
             
-            # If player is on destination grid square, but the exact position is not the center of the destination grid square, 
-            # then set the destination grid square center pos X and Y as the grid square center pos X and Y that the player is moving towards now.
-            gridVal = self.grid[int(destSqPosX / Player.TILE_SIZE) + (Player.TILE_SIZE) * x][int(destSqPosY / Player.TILE_SIZE) +  (Player.TILE_SIZE) * y]
-            if gridVal != 1 and gridVal != 2 and gridVal != 3:
-                self.destGridSqX = int(destSqPosX / Player.TILE_SIZE) + (Player.TILE_SIZE) * x
-                self.destGridSqY = int(destSqPosY / Player.TILE_SIZE) +  (Player.TILE_SIZE) * y
-                if action != 'Bomb' and action != 'Wait':
-                    self.toDestGridAction = action
-                else:
-                    self.toDestGridAction = ''
-            else:
-                self.toDestGridAction = ''
+    #         # If player is on destination grid square, but the exact position is not the center of the destination grid square, 
+    #         # then set the destination grid square center pos X and Y as the grid square center pos X and Y that the player is moving towards now.
+    #         gridVal = self.grid[int(destSqPosX / Player.TILE_SIZE) + (Player.TILE_SIZE) * x][int(destSqPosY / Player.TILE_SIZE) +  (Player.TILE_SIZE) * y]
+    #         if gridVal != 1 and gridVal != 2 and gridVal != 3:
+    #             self.destGridSqX = int(destSqPosX / Player.TILE_SIZE) + (Player.TILE_SIZE) * x
+    #             self.destGridSqY = int(destSqPosY / Player.TILE_SIZE) +  (Player.TILE_SIZE) * y
+    #             if action != 'Bomb' and action != 'Wait':
+    #                 self.toDestGridAction = action
+    #             else:
+    #                 self.toDestGridAction = ''
+    #         else:
+    #             self.toDestGridAction = ''
 
-            self.hasNoDestinationGrid = False
+    #         self.hasNoDestinationGrid = False
 
 
-        return self.hasNoDestinationGrid
+    #     return self.hasNoDestinationGrid
 
     def step(self, action):
         dt = self.clock.tick(15)
@@ -430,35 +534,110 @@ class BombermanEnv(object):
             enemy.make_move(self.grid, self.bombs, self.explosions, self.enemyBlocks)
 
         if self.player.life:
-            currentPlayerDirection = self.player.direction
-            hasMovement = False
+            # currentPlayerDirection = self.player.direction
+            # hasMovement = True
+            # if action == 'D':
+            #     currentPlayerDirection = 0
+            #     self.player.move(0, 1, self.grid, self.enemyBlocks, self.powerUps)
+            # elif action == 'R':
+            #     currentPlayerDirection = 1
+            #     self.player.move(1, 0, self.grid, self.enemyBlocks, self.powerUps)
+            # elif action == 'U':
+            #     currentPlayerDirection = 2
+            #     self.player.move(0, -1, self.grid, self.enemyBlocks, self.powerUps)
+            # elif action == 'L':
+            #     currentPlayerDirection = 3
+            #     self.player.move(-1, 0, self.grid, self.enemyBlocks, self.powerUps)
+            # if action == 'Wait' or action == 'Bomb':
+            #     hasMovement = False
 
-            if action == 'D':
-                currentPlayerDirection = 0
-                self.player.move(0, 1, self.grid, self.enemyBlocks, self.powerUps)
-                hasMovement = True
-            elif action == 'R':
-                currentPlayerDirection = 1
-                self.player.move(1, 0, self.grid, self.enemyBlocks, self.powerUps)
-                hasMovement = True
-            elif action == 'U':
-                currentPlayerDirection = 2
-                self.player.move(0, -1, self.grid, self.enemyBlocks, self.powerUps)
-                hasMovement = True
-            elif action == 'L':
-                currentPlayerDirection = 3
-                self.player.move(-1, 0, self.grid, self.enemyBlocks, self.powerUps)
-                hasMovement = True
-            elif action == 'Wait':
-                hasMovement = False
-            if currentPlayerDirection != self.player.direction:
+            # if currentPlayerDirection != self.player.direction:
+            #     self.player.frame = 0
+            #     self.player.direction = currentPlayerDirection
+            # if hasMovement:
+            #     if self.player.frame == 2:
+            #         self.player.frame = 0
+            #     else:
+            #         self.player.frame += 1
+
+            if not self.playerMoving:
+                # When player was originally not moving, or has reached its destination grid square, 
+                # and an action to move is given as input, then set up values such that player would move in the same direction
+                # until they reach the destination grid. 
+                # THIS IS TO STOP THE PLAYER FROM STOPPING IN BETWEEN SQUARES.
+                self.currentPlayerDirection = self.player.direction
+                self.playerMoving = True
+
+                self.playerDirection_X = 0
+                self.playerDirection_Y = 0
+                self.playerMovingAction = action
+
+                if action == 'D':
+                    self.currentPlayerDirection = 0
+                    self.playerDirection_X = 0
+                    self.playerDirection_Y = 1
+                elif action == 'R':
+                    self.currentPlayerDirection = 1
+                    self.playerDirection_X = 1
+                    self.playerDirection_Y = 0
+                elif action == 'U':
+                    self.currentPlayerDirection = 2
+                    self.playerDirection_X = 0
+                    self.playerDirection_Y = -1
+                elif action == 'L':
+                    self.currentPlayerDirection = 3
+                    self.playerDirection_X = -1
+                    self.playerDirection_Y = 0
+                elif action == 'Wait' or action == 'Bomb':
+                    self.playerDirection_X = 0
+                    self.playerDirection_Y = 0
+                    self.playerMoving = False
+                    self.playerMovingAction = ''
+                
+                if self.playerMoving:
+                    # Storing Destination Grid Coordinates in Grid
+                    self.playerNextGridPos_X = int(self.player.pos_x / Player.TILE_SIZE) + self.playerDirection_X
+                    self.playerNextGridPos_Y = int(self.player.pos_y / Player.TILE_SIZE) + self.playerDirection_Y
+                    gridVal = self.grid[self.playerNextGridPos_X][self.playerNextGridPos_Y]
+                    if gridVal == 1 or gridVal == 2 or gridVal == 3:
+                        # If Destination Grid is a Wall, Destructable Box or Bomb, Reset Values to not Force Player to Move in that Direction.
+                        self.playerDirection_X = 0
+                        self.playerDirection_Y = 0      
+                        self.playerNextGridPos_X = None
+                        self.playerNextGridPos_Y = None
+                        self.playerMoving = False
+                        self.playerMovingAction = ''
+
+            elif int(self.player.pos_x / Player.TILE_SIZE) == self.playerNextGridPos_X and \
+                    int(self.player.pos_y / Player.TILE_SIZE) == self.playerNextGridPos_Y and \
+                        self.player.pos_x % Player.TILE_SIZE == 0 and \
+                        self.player.pos_y % Player.TILE_SIZE == 0:
+                # If current grid coordinates of player is same as destination grid coordinates, 
+                # and position of player are multiples of Player.TILE_SIZE,
+                # THEN reset values 
+                self.playerDirection_X = 0
+                self.playerDirection_Y = 0
+                self.playerNextGridPos_X = None
+                self.playerNextGridPos_Y = None
+                self.playerMoving = False
+                self.playerMovingAction = ''
+            else:
+                action = self.playerMovingAction
+
+            # Move player
+            self.player.move(self.playerDirection_X, self.playerDirection_Y, self.grid, self.enemyBlocks, self.powerUps)
+
+            if self.currentPlayerDirection != self.player.direction:
                 self.player.frame = 0
-                self.player.direction = currentPlayerDirection
-            if hasMovement:
+                self.player.direction = self.currentPlayerDirection
+            if self.playerMoving:
                 if self.player.frame == 2:
                     self.player.frame = 0
                 else:
                     self.player.frame += 1
+
+            self.setEnemiesInGrid()
+            self.setPlayerInGrid()
 
         ############################################
         """ FOR RENDERING THE GAME IN THE WINDOW """
@@ -473,7 +652,8 @@ class BombermanEnv(object):
                 hasDroppedBomb = True
                 playerBomb = self.player.plant_bomb(self.grid)
                 self.bombs.append(playerBomb)
-                self.grid[playerBomb.pos_x][playerBomb.pos_y] = 3
+                self.grid[playerBomb.pos_x][playerBomb.pos_y] = self.BOMB_GRID_VAL
+                self.gridState[playerBomb.pos_x][playerBomb.pos_y] += self.BOMB_GRID_VAL
                 self.player.bomb_limit -= 1
 
         self.updateBombs(dt)
@@ -487,96 +667,126 @@ class BombermanEnv(object):
         reward = 0
         IN_BOMB_RANGE_PENALTY = -50
         MOVING_INTO_BOMB_RANGE_PENALTY = -50
-        MOVING_FROM_BOMB_RANGE_REWARD = 1000
-        NOT_MOVING_FROM_BOMB_RANGE_PENALTY = -10
+        MOVING_FROM_BOMB_RANGE_REWARD = 100000
+        NOT_MOVING_FROM_BOMB_RANGE_PENALTY = -1000
         TRYING_TO_ENTER_WALL_PENALTY = -50
-        BOXES_IN_BOMB_RANGE_REWARD = 10
+        BOXES_IN_BOMB_RANGE_REWARD = 10000
         WALK_INTO_SPACE_REWARD = 50
         SAME_GRID_PENALTY = -5
-        DEATH_PENALTY = -1000
+        TRAPPED_WITH_BOMB_PENALTY = -100000
+        DEATH_PENALTY = -100000
 
-        # Very high positive and negative rewards to prevent AI from only moving a little in a direction before changing directions.
-        NOT_MOVING_TO_DEST_GRID_PENALTY = -1000
-        MOVING_TO_DEST_GRID_PENALTY = 1000
-        # if not self.checkIfReachedDestSq(action):
-        #     if not self.checkIfWalkingToBombRange(action) and action != self.toDestGridAction:
-        #         reward += NOT_MOVING_TO_DEST_GRID_PENALTY
-        #     else:
-        #         reward += MOVING_TO_DEST_GRID_PENALTY
+        # # Very high positive and negative rewards to prevent AI from only moving a little in a direction before changing directions.
+        # NOT_MOVING_TO_DEST_GRID_PENALTY = -1000
+        # MOVING_TO_DEST_GRID_PENALTY = 1000
+        
+        if not self.playerMoving:
+            # Only give reward if player is not moving between grid squares.
 
-        if self.checkIfInBombRange():
-            reward += IN_BOMB_RANGE_PENALTY
+            # if not self.checkIfReachedDestSq(action):
+            #     if not self.checkIfWalkingToBombRange(action) and action != self.toDestGridAction:
+            #         reward += NOT_MOVING_TO_DEST_GRID_PENALTY
+            #     else:
+            #         reward += MOVING_TO_DEST_GRID_PENALTY
 
-        if self.checkIfWalkingToBombRange(action):
-            reward += MOVING_INTO_BOMB_RANGE_PENALTY
+            if self.checkIfInBombRange():
+                reward += IN_BOMB_RANGE_PENALTY
 
-        if self.checkIfWalkingOutOfBombRange(action):
-            reward += MOVING_FROM_BOMB_RANGE_REWARD
-        else:
-            reward += NOT_MOVING_FROM_BOMB_RANGE_PENALTY
+            if self.checkIfWalkingToBombRange(action):
+                reward += MOVING_INTO_BOMB_RANGE_PENALTY
 
-        if hasDroppedBomb and self.checkIfOwnBombToHitBoxes(playerBomb):
-            reward += BOXES_IN_BOMB_RANGE_REWARD
-
-        if hasDroppedBomb and self.checkIfOwnBombToHitEnemy(playerBomb):
-            reward += self.rewardIfOwnBombToHitEnemy()
-
-        if self.checkIfWalkIntoObj(action):
-            reward += TRYING_TO_ENTER_WALL_PENALTY
-
-        if self.checkIfWalkableSpace(action):
-            if self.checkIfSamePlace(self.playerPrevPosX, self.playerPrevPosY):
-                # self.stepsPlayerInSamePos += 10
-                reward += SAME_GRID_PENALTY  ######## - self.stepsPlayerInSamePos
+            if self.checkIfWalkingOutOfBombRange(action):
+                reward += MOVING_FROM_BOMB_RANGE_REWARD
             else:
-                self.stepsPlayerInSamePos = 0
-                reward += WALK_INTO_SPACE_REWARD
+                reward += NOT_MOVING_FROM_BOMB_RANGE_PENALTY
 
-        # if enemy very close / in an enclosure and action is not drop bomb PENALTY //////////////////////////////////////////////////////////
+            if hasDroppedBomb and self.checkIfOwnBombToHitBoxes(playerBomb):
+                reward += BOXES_IN_BOMB_RANGE_REWARD
+
+            if hasDroppedBomb and self.checkIfOwnBombToHitEnemy(playerBomb):
+                reward += self.rewardIfOwnBombToHitEnemy()
+
+            if self.checkIfWalkIntoObj(action):
+                reward += TRYING_TO_ENTER_WALL_PENALTY
+
+            if self.checkIfTrappedWithBomb():
+                reward += TRAPPED_WITH_BOMB_PENALTY
+
+
+            # if self.checkIfWalkableSpace(action):
+            #     # if self.checkIfSamePlace(self.playerPrevPosX, self.playerPrevPosY):
+            #     #     # self.stepsPlayerInSamePos += 10
+            #     #     reward += SAME_GRID_PENALTY  ######## - self.stepsPlayerInSamePos
+            #     else:
+            #         self.stepsPlayerInSamePos = 0
+            #         reward += WALK_INTO_SPACE_REWARD
+
+        # Need penalty codes for "if enemy very close / in an enclosure and action is not drop bomb" //////////////////////////////////////////////////////////
 
         if not self.player.life:
             reward += DEATH_PENALTY
+            self.clearPlayerFromGrid()
         ######################################
             
         
-        # print("NormalisedState: ", np.array_str(self.getNormalisedState()))
-        print()
-        print("Player pos x, pos y: ", self.player.pos_x, self.player.pos_y)
-        print("Player int(self.player.pos_x / Player.TILE_SIZE), int(self.player.pos_y / Player.TILE_SIZE): ", int(self.player.pos_x / Player.TILE_SIZE), int(self.player.pos_y / Player.TILE_SIZE))
+        # print("NormalisedState: \n", np.array_str(self.getNormalisedState()))
+        # print()
+        # print("Player pos x, pos y: ", self.player.pos_x, self.player.pos_y)
+        # print("Player int(self.player.pos_x / Player.TILE_SIZE), int(self.player.pos_y / Player.TILE_SIZE): ", int(self.player.pos_x / Player.TILE_SIZE), int(self.player.pos_y / Player.TILE_SIZE))
+        # print("self.playerDirection_X, self.playerDirection_Y: ", self.playerDirection_X, self.playerDirection_Y)
+        # print("self.playerNextGridPos_X, self.playerNextGridPos_Y:", self.playerNextGridPos_X, self.playerNextGridPos_Y)
+        # print("self.playerMoving: ", self.playerMoving)
+        # print("self.playerMovingAction: ", self.playerMovingAction)
+        # print("action: ", action)
+
         # print("self.hasNoDestinationGrid: ", self.hasNoDestinationGrid)
         # print("self.toDestGridActio: ", self.toDestGridAction)
         # print("self.destGridSqX, self.destGridSqY: ", self.destGridSqX, ", ", self.destGridSqY)
         # print("Player int(self.destGridSqX / Player.TILE_SIZE), int(self.destGridSqY / Player.TILE_SIZE): ", int(self.destGridSqX / Player.TILE_SIZE), int(self.destGridSqY / Player.TILE_SIZE))
         # print("Grid x: ", len(self.grid[0]))
         # print("Grid y: ", len(self.grid))
-        print("Reward: ", reward)
-        
+            
+        # print("Reward: ", reward)
+        # print()
 
-        return self.getNormalisedState(), reward, self.isGameEnded(), None
+        # if self.player.life:
+        #     time.sleep(2)
+
+        return self.getNormalisedState(), reward, self.isGameEnded(), self.playerMoving
 
     def getNormalisedState(self):
-        return self.grid # / self.MAX_VAL_IN_GRID
+        return self.gridState # / self.MAX_VAL_IN_GRID
 
     def reset(self):
-        self.grid = [row[:] for row in GRID_BASE]
+        # self.grid = [row[:] for row in GRID_BASE]
+        # self.grid = np.array(GRID_BASE)
+        self.grid = GRID_BASE.copy()
         self.generateMap()
-        self.grid = np.array(self.grid)
+        self.gridState = self.grid.copy()
 
-        self.enemyList.clear()
-        self.enemyBlocks.clear()
         self.explosions.clear()
         self.bombs.clear()
         self.powerUps.clear()
+        
+        self.enemyList.clear()
+        self.enemyBlocks.clear()
+        self.enemiesPrevGridPosX.clear()
+        self.enemiesPrevGridPosY.clear()
 
         self.player = Player()
-        self.playerPrevPosX = self.player.pos_x
-        self.playerPrevPosY = self.player.pos_y
-        self.stepsPlayerInSamePos = 0
+        self.playerPrevGridPosX = int(self.player.pos_x / Player.TILE_SIZE) 
+        self.playerPrevGridPosY = int(self.player.pos_y / Player.TILE_SIZE)
+        self.playerDirection_X = 0
+        self.playerDirection_Y = 0
+        self.playerMoving = False
+        self.currentPlayerDirection = 0
+        self.playerNextGridPos_X = None
+        self.playerNextGridPos_Y = None
 
-        self.destGridSqX = self.player.pos_x
-        self.destGridSqY = self.player.pos_y
-        self.hasNoDestinationGrid = True
-        self.toDestGridAction = ''
+        # self.destGridSqX = self.player.pos_x
+        # self.destGridSqY = self.player.pos_y
+        # self.hasNoDestinationGrid = True
+        # self.toDestGridAction = ''
 
         self.clock = pygame.time.Clock()
         self.gameEnded = False
@@ -586,30 +796,39 @@ class BombermanEnv(object):
             en1.load_animations('1', self.scale)
             self.enemyList.append(en1)
             self.enemyBlocks.append(en1)
+            self.enemiesPrevGridPosX.append(int(en1.pos_x / Enemy.TILE_SIZE))
+            self.enemiesPrevGridPosY.append(int(en1.pos_y / Enemy.TILE_SIZE))
 
         if self.en2_alg is not Algorithm.NONE:
             en2 = Enemy(1, 11, self.en2_alg )
             en2.load_animations('2', self.scale)
             self.enemyList.append(en2)
             self.enemyBlocks.append(en2)
+            self.enemiesPrevGridPosX.append(int(en2.pos_x / Enemy.TILE_SIZE))
+            self.enemiesPrevGridPosY.append(int(en2.pos_y / Enemy.TILE_SIZE))
 
         if self.en3_alg is not Algorithm.NONE:
             en3 = Enemy(11, 1, self.en3_alg)
             en3.load_animations('3', self.scale)
             self.enemyList.append(en3)
             self.enemyBlocks.append(en3)
+            self.enemiesPrevGridPosX.append(int(en3.pos_x / Enemy.TILE_SIZE))
+            self.enemiesPrevGridPosY.append(int(en3.pos_y / Enemy.TILE_SIZE))
 
         if self.player_alg is Algorithm.PLAYER:
             self.player.load_animations(self.scale)
             self.enemyBlocks.append(self.player)
-        elif self.player_alg is not Algorithm.NONE:
-            en0 = Enemy(1, 1, self.player_alg)
-            en0.load_animations('', self.scale)
-            self.enemyList.append(en0)
-            self.enemyBlocks.append(en0)
-            self.player.life = False
+        # elif self.player_alg is not Algorithm.NONE:
+        #     en0 = Enemy(1, 1, self.player_alg)
+        #     en0.load_animations('', self.scale)
+        #     self.enemyList.append(en0)
+        #     self.enemyBlocks.append(en0)
+        #     self.player.life = False
         else:
             self.player.life = False
+        
+        self.setPlayerInGrid()
+        self.setEnemiesInGrid()
 
         return self.getNormalisedState()
 
