@@ -1,7 +1,7 @@
 import numpy as np
 from enums.algorithm import Algorithm
 import pygame
-import dqn
+from dqn import DQN
 from world_for_deep_q_learning import BombermanEnv
 
 pygame.display.init()
@@ -15,27 +15,31 @@ en3_alg = Algorithm.DIJKSTRA
 show_path = True
 surface = pygame.display.set_mode(WINDOW_SIZE)
 
-model_path = "models\5.h5"
+model_path = "models/196.h5"
 
 env = BombermanEnv(surface, show_path, player_alg, en1_alg, en2_alg, en3_alg, TILE_SIZE)
-agent = dqn.DQN(
-    state_shape=env.ENVIRONMENT_SHAPE,
-    action_size=env.ACTION_SPACE_SIZE
-)
+agent = DQN(
+        state_shape=env.stateShape,
+        action_size=env.actionSpaceSize
+    )
 agent.load(model_path)
 
 state = env.reset()
 state = np.expand_dims(state, axis=0)
+done = False
 
 pygame.init()
 
-while running:
+while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
-    action = agent.act(state, 0)
-    state, reward, done, score = env.step(action)
+    if done:
+        state = env.reset()
+        state = np.expand_dims(state, axis=0)
+    action = agent.act(state)
+    state, reward, done, gameinfo = env.step(env.actionSpace[action])
     state = np.expand_dims(state, axis=0)
     pygame.display.flip()
 
