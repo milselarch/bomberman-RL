@@ -39,8 +39,8 @@ class BombermanEnv(object):
         self.generateMap()
         # self.grid = np.array(self.grid)
         self.gridState = self.grid.copy()
-
         self.reward = 0
+
         
         self.WALL_GRID_VAL = 1
         self.BOX_GRID_VAL = 2
@@ -102,6 +102,7 @@ class BombermanEnv(object):
         self.playerNextGridPos_X = None
         self.playerNextGridPos_Y = None
         self.playerInBombRange = False
+
 
         self.stepsPlayerInSamePos = 0
         # self.destGridSqX = self.player.pos_x
@@ -315,7 +316,7 @@ class BombermanEnv(object):
                 explosion.explode(self.grid, self.bombs, bomb, self.powerUps)
                 explosion.clear_sectors(self.grid, np.random, self.powerUps)
                 self.explosions.append(explosion)
-            
+
             elif bomb.time < 5: 
                 self.setExplosionsInGrid()
         if self.player not in self.enemyList:
@@ -708,12 +709,6 @@ class BombermanEnv(object):
         if not self.playerMoving:
             # Only give reward if player is not moving between grid squares.
 
-            # if not self.checkIfReachedDestSq(action):
-            #     if not self.checkIfWalkingToBombRange(action) and action != self.toDestGridAction:
-            #         reward += NOT_MOVING_TO_DEST_GRID_PENALTY
-            #     else:
-            #         reward += MOVING_TO_DEST_GRID_PENALTY
-
             if self.checkIfInBombRange():
                 self.reward += IN_BOMB_RANGE_PENALTY
             else:
@@ -742,22 +737,14 @@ class BombermanEnv(object):
             if self.checkIfTrappedWithBomb():
                 self.reward += TRAPPED_WITH_BOMB_PENALTY
 
-
-            # if self.checkIfWalkableSpace(action):
-            #     # if self.checkIfSamePlace(self.playerPrevPosX, self.playerPrevPosY):
-            #     #     # self.stepsPlayerInSamePos += 10
-            #     #     reward += SAME_GRID_PENALTY  ######## - self.stepsPlayerInSamePos
-            #     else:
-            #         self.stepsPlayerInSamePos = 0
-            #         reward += WALK_INTO_SPACE_REWARD
-
         # Need penalty codes for "if enemy very close / in an enclosure and action is not drop bomb" //////////////////////////////////////////////////////////
 
         if not self.player.life:
             self.reward += DEATH_PENALTY
             self.clearPlayerFromGrid()
         ######################################
-            
+        ######################################
+        
         
         # print("NormalisedState: \n", np.array_str(self.getNormalisedState()))
         # print()
@@ -776,13 +763,16 @@ class BombermanEnv(object):
         # print("Grid x: ", len(self.grid[0]))
         # print("Grid y: ", len(self.grid))
             
-        print("self.reward: ", self.reward)
-        print()
+
+        # print("self.reward: ", self.reward)
+        # print()
+
 
         # if self.player.life:
         #     time.sleep(2)
 
         return self.getNormalisedState(), self.reward, self.isGameEnded(), self.playerMoving
+
 
     def getNormalisedState(self):
         return self.gridState # / self.MAX_VAL_IN_GRID
@@ -793,7 +783,6 @@ class BombermanEnv(object):
         self.grid = GRID_BASE.copy()
         self.generateMap()
         self.gridState = self.grid.copy()
-
         self.reward = 0
 
         self.explosions.clear()
