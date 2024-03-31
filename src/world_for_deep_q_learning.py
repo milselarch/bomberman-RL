@@ -35,11 +35,12 @@ class BombermanEnv(object):
         self.scale = scale
 
         # self.grid = [row[:] for row in GRID_BASE]
-        
         self.grid = GRID_BASE.copy()
         self.generateMap()
         # self.grid = np.array(self.grid)
         self.gridState = self.grid.copy()
+        self.reward = 0
+
         
         self.WALL_GRID_VAL = 1
         self.BOX_GRID_VAL = 2
@@ -61,7 +62,13 @@ class BombermanEnv(object):
         self.m = len(self.grid)     # Height of whole map, ie. no. of rows
         self.n = len(self.grid[0])  # Width of whole map, ie. no. of columns/fields in each row
         self.stateShape = (self.m, self.n, 1)
-        self.actionSpace = ['U', 'D', 'L', 'R', 'Bomb', 'Wait']
+        self.UP = 'U'
+        self.DOWN = 'D'
+        self.LEFT = 'L'
+        self.RIGHT = 'R'
+        self.BOMB = 'Bomb'
+        self.WAIT = 'Wait'
+        self.actionSpace = [self.UP, self.DOWN, self.LEFT, self.RIGHT, self.BOMB, self.WAIT]
         self.actionSpaceSize = len(self.actionSpace)
         self.actionsShape = (self.actionSpaceSize, )
 
@@ -94,6 +101,8 @@ class BombermanEnv(object):
         self.currentPlayerDirection = 0
         self.playerNextGridPos_X = None
         self.playerNextGridPos_Y = None
+        self.playerInBombRange = False
+
 
         self.stepsPlayerInSamePos = 0
         # self.destGridSqX = self.player.pos_x
@@ -307,6 +316,8 @@ class BombermanEnv(object):
                 explosion.explode(self.grid, self.bombs, bomb, self.powerUps)
                 explosion.clear_sectors(self.grid, np.random, self.powerUps)
                 self.explosions.append(explosion)
+
+            elif bomb.time < 5: 
                 self.setExplosionsInGrid()
         if self.player not in self.enemyList:
             self.player.check_death(self.explosions)
@@ -335,59 +346,73 @@ class BombermanEnv(object):
                     return True
         return False 
     
-    def checkIfWalkingToBombRange(self, action):
+    def checkIfWalkingToBombRange(self):
         playerPosX = self.player.pos_x
         playerPosY = self.player.pos_y
-        x = 0
-        y = 0
-        if action == 'D':
-            y = 1
-        elif action == 'R':
-            x = 1
-        elif action == 'U':
-            y = -1
-        elif action == 'L':
-            x = -1
-
-        for bomb in self.bombs:
-            ######### bomb.sectors array stores all positions that the bomb explosion would hit. #########
-            for explosionFieldCoords in bomb.sectors:
-                explosionFieldPosX, explosionFieldPosY = explosionFieldCoords
-                if int(playerPosX / Player.TILE_SIZE) + x == explosionFieldPosX and int(playerPosY / Player.TILE_SIZE) + y == explosionFieldPosY:
-                    return True
-        return False 
-    
-    def checkIfWalkingOutOfBombRange(self, action):
-        playerPosX = self.player.pos_x
-        playerPosY = self.player.pos_y
-        x = 0
-        y = 0
-        if action == 'D':
-            y = 1
-        elif action == 'R':
-            x = 1
-        elif action == 'U':
-            y = -1
-        elif action == 'L':
-            x = -1
-
-        if self.checkIfInBombRange():
+     
+        if not self.playerInBombRange:
             for bomb in self.bombs:
                 ######### bomb.sectors array stores all positions that the bomb explosion would hit. #########
                 for explosionFieldCoords in bomb.sectors:
                     explosionFieldPosX, explosionFieldPosY = explosionFieldCoords
-                    if self.checkIfWalkableSpace(action) and int(playerPosX / Player.TILE_SIZE) + x == explosionFieldPosX and int(playerPosY / Player.TILE_SIZE) + y == explosionFieldPosY:
-                        # As long as player's next destination grid is still in any explosion range, return false. 
+                    if int(playerPosX / Player.TILE_SIZE) == explosionFieldPosX and int(playerPosY / Player.TILE_SIZE) == explosionFieldPosY:
+                        self.playerInBombRange = True
+                        return True
+                    
+        # If player is not walking into bomb range, or is already in bomb range, return False
+        return False 
+    
+    def checkIfWalkingOutOfBombRange(self):
+        playerPosX = self.player.pos_x
+        playerPosY = self.player.pos_y
+
+        if self.playerInBombRange:
+            for bomb in self.bombs:
+                ######### bomb.sectors array stores all positions that the bomb explosion would hit. #########
+                for explosionFieldCoords in bomb.sectors:
+                    explosionFieldPosX, explosionFieldPosY = explosionFieldCoords
+                    if int(playerPosX / Player.TILE_SIZE) == explosionFieldPosX and int(playerPosY / Player.TILE_SIZE) == explosionFieldPosY:
+                        # As long as player's grid is still in any explosion range, return false. 
                         return False
-            # If player's next destination grid is not in any explosion range and player can move into that grid, return true.
-            return self.checkIfWalkableSpace(action) 
+            # If player's grid is not in any explosion range and player was originally in bomb range, return true.
+            self.playerInBombRange = False
+            return True
+        
+        # If player is previously and currently not in bomb range, return False 
+        return False
+    
+    def checkIfWaitingBesideBombRange(self, action):
+        playerGridPosX = int(self.player.pos_x / Player.TILE_SIZE)
+        playerGridPosY = int(self.player.pos_y / Player.TILE_SIZE)
+        playerTopGridPos = (playerGridPosX, playerGridPosY - 1)
+        playerBottomGridPos = (playerGridPosX, playerGridPosY + 1)
+        playerLeftGridPos = (playerGridPosX - 1, playerGridPosY)
+        playerRightGridPos = (playerGridPosX + 1, playerGridPosY)
+
+        if not self.playerInBombRange and action == self.WAIT:
+            for bomb in self.bombs:
+                ######### bomb.sectors array stores all positions that the bomb explosion would hit. #########
+                for explosionFieldCoords in bomb.sectors:
+                    explosionFieldPosX, explosionFieldPosY = explosionFieldCoords
+                    if (playerTopGridPos[0] == explosionFieldPosX and playerTopGridPos[1] == explosionFieldPosY) or \
+                        (playerBottomGridPos[0] == explosionFieldPosX and playerBottomGridPos[1] == explosionFieldPosY) or \
+                        (playerLeftGridPos[0] == explosionFieldPosX and playerLeftGridPos[1] == explosionFieldPosY) or \
+                        (playerRightGridPos[0] == explosionFieldPosX and playerRightGridPos[1] == explosionFieldPosY):
+                        # If top, bottom, left or right grid of player's grid is in any explosion range, return True. 
+                        return True
+        return False
     
     def checkIfOwnBombToHitBoxes(self, playerBomb):
-        for explosionFieldsCoords in playerBomb.sectors:
-            explosionFieldsPosX, explosionFieldPosY = explosionFieldsCoords
-            if self.grid[explosionFieldsPosX][explosionFieldPosY] == 2:
-                ###### 2 in grid means the field contains a destructable box. ###### 
-                return True
+        # Only give reward when player just planted bomb
+        playerGridPosX = int(self.player.pos_x / Player.TILE_SIZE)
+        playerGridPosY = int(self.player.pos_y / Player.TILE_SIZE)
+
+        if(playerGridPosX == playerBomb.pos_x and playerGridPosY == playerBomb.pos_y):
+            for explosionFieldsCoords in playerBomb.sectors:
+                explosionFieldsPosX, explosionFieldPosY = explosionFieldsCoords
+                if self.grid[explosionFieldsPosX][explosionFieldPosY] == 2:
+                    ###### 2 in grid means the field contains a destructable box. ###### 
+                    return True
         return False    
     
     def checkIfOwnBombToHitEnemy(self, playerBomb):
@@ -421,13 +446,13 @@ class BombermanEnv(object):
         playerPosY = self.player.pos_y
         x = 0
         y = 0
-        if action == 'D':
+        if action == self.DOWN:
             y = 1
-        elif action == 'R':
+        elif action == self.RIGHT:
             x = 1
-        elif action == 'U':
+        elif action == self.UP:
             y = -1
-        elif action == 'L':
+        elif action == self.LEFT:
             x = -1
 
         gridVal = self.grid[int(playerPosX / Player.TILE_SIZE) + x][int(playerPosY / Player.TILE_SIZE) + y] 
@@ -457,26 +482,26 @@ class BombermanEnv(object):
         playerPosY = self.player.pos_y
         x = 0
         y = 0
-        if action == 'D':
+        if action == self.DOWN:
             y = 1
-        elif action == 'R':
+        elif action == self.RIGHT:
             x = 1
-        elif action == 'U':
+        elif action == self.UP:
             y = -1
-        elif action == 'L':
+        elif action == self.LEFT:
             x = -1
         if self.grid[int(playerPosX / Player.TILE_SIZE) + x][int(playerPosY / Player.TILE_SIZE) + y] == 0:
             return True
         else:
             return False
         
-    def checkIfSamePlace(self, oldPosX, oldPosY):
-        playerPosX = self.player.pos_x
-        playerPosY = self.player.pos_y
-        if int(playerPosX / Player.TILE_SIZE) == int(oldPosX / Player.TILE_SIZE) and int(playerPosY / Player.TILE_SIZE) == int(oldPosY / Player.TILE_SIZE):
-            return True
-        else:
-            return False
+    # def checkIfSamePlace(self, oldPosX, oldPosY):
+    #     playerPosX = self.player.pos_x
+    #     playerPosY = self.player.pos_y
+    #     if int(playerPosX / Player.TILE_SIZE) == int(oldPosX / Player.TILE_SIZE) and int(playerPosY / Player.TILE_SIZE) == int(oldPosY / Player.TILE_SIZE):
+    #         return True
+    #     else:
+    #         return False
         
     # def checkIfReachedDestSq(self, action):
     #     playerPosX = self.player.pos_x
@@ -572,23 +597,23 @@ class BombermanEnv(object):
                 self.playerDirection_Y = 0
                 self.playerMovingAction = action
 
-                if action == 'D':
+                if action == self.DOWN:
                     self.currentPlayerDirection = 0
                     self.playerDirection_X = 0
                     self.playerDirection_Y = 1
-                elif action == 'R':
+                elif action == self.RIGHT:
                     self.currentPlayerDirection = 1
                     self.playerDirection_X = 1
                     self.playerDirection_Y = 0
-                elif action == 'U':
+                elif action == self.UP:
                     self.currentPlayerDirection = 2
                     self.playerDirection_X = 0
                     self.playerDirection_Y = -1
-                elif action == 'L':
+                elif action == self.LEFT:
                     self.currentPlayerDirection = 3
                     self.playerDirection_X = -1
                     self.playerDirection_Y = 0
-                elif action == 'Wait' or action == 'Bomb':
+                elif action == self.WAIT or action == self.BOMB:
                     self.playerDirection_X = 0
                     self.playerDirection_Y = 0
                     self.playerMoving = False
@@ -647,7 +672,7 @@ class BombermanEnv(object):
 
         hasDroppedBomb = False
         playerBomb = None
-        if action == 'Bomb':
+        if action == self.BOMB:
             if self.player.bomb_limit != 0 and self.player.life:
                 hasDroppedBomb = True
                 playerBomb = self.player.plant_bomb(self.grid)
@@ -664,17 +689,18 @@ class BombermanEnv(object):
         ######################################
         """ REWARDS AND PENALTIES SECTION """
         ######################################
-        reward = 0
-        IN_BOMB_RANGE_PENALTY = -50
-        MOVING_INTO_BOMB_RANGE_PENALTY = -50
-        MOVING_FROM_BOMB_RANGE_REWARD = 100000
-        NOT_MOVING_FROM_BOMB_RANGE_PENALTY = -1000
-        TRYING_TO_ENTER_WALL_PENALTY = -50
-        BOXES_IN_BOMB_RANGE_REWARD = 10000
-        WALK_INTO_SPACE_REWARD = 50
+        IN_BOMB_RANGE_PENALTY = -5
+        NOT_IN_BOMB_RANGE_PENALTY = 5
+        MOVING_INTO_BOMB_RANGE_PENALTY = -10
+        MOVING_FROM_BOMB_RANGE_REWARD = 10
+        NOT_MOVING_FROM_BOMB_RANGE_PENALTY = -10
+        WAITING_BESIDE_BOMB_RANGE_REWARD = 100
+        TRYING_TO_ENTER_WALL_PENALTY = -5
+        BOXES_IN_BOMB_RANGE_REWARD = 10
+        WALK_INTO_SPACE_REWARD = 5
         SAME_GRID_PENALTY = -5
-        TRAPPED_WITH_BOMB_PENALTY = -100000
-        DEATH_PENALTY = -100000
+        TRAPPED_WITH_BOMB_PENALTY = -10
+        DEATH_PENALTY = -100
 
         # # Very high positive and negative rewards to prevent AI from only moving a little in a direction before changing directions.
         # NOT_MOVING_TO_DEST_GRID_PENALTY = -1000
@@ -683,51 +709,42 @@ class BombermanEnv(object):
         if not self.playerMoving:
             # Only give reward if player is not moving between grid squares.
 
-            # if not self.checkIfReachedDestSq(action):
-            #     if not self.checkIfWalkingToBombRange(action) and action != self.toDestGridAction:
-            #         reward += NOT_MOVING_TO_DEST_GRID_PENALTY
-            #     else:
-            #         reward += MOVING_TO_DEST_GRID_PENALTY
-
             if self.checkIfInBombRange():
-                reward += IN_BOMB_RANGE_PENALTY
-
-            if self.checkIfWalkingToBombRange(action):
-                reward += MOVING_INTO_BOMB_RANGE_PENALTY
-
-            if self.checkIfWalkingOutOfBombRange(action):
-                reward += MOVING_FROM_BOMB_RANGE_REWARD
+                self.reward += IN_BOMB_RANGE_PENALTY
             else:
-                reward += NOT_MOVING_FROM_BOMB_RANGE_PENALTY
+                self.reward += NOT_IN_BOMB_RANGE_PENALTY
+
+            if self.checkIfWalkingToBombRange():
+                self.reward += MOVING_INTO_BOMB_RANGE_PENALTY
+
+            if self.checkIfWalkingOutOfBombRange():
+                self.reward += MOVING_FROM_BOMB_RANGE_REWARD
+            else:
+                self.reward += NOT_MOVING_FROM_BOMB_RANGE_PENALTY
+
+            if self.checkIfWaitingBesideBombRange(action):
+                self.reward += WAITING_BESIDE_BOMB_RANGE_REWARD
 
             if hasDroppedBomb and self.checkIfOwnBombToHitBoxes(playerBomb):
-                reward += BOXES_IN_BOMB_RANGE_REWARD
+                self.reward += BOXES_IN_BOMB_RANGE_REWARD
 
             if hasDroppedBomb and self.checkIfOwnBombToHitEnemy(playerBomb):
-                reward += self.rewardIfOwnBombToHitEnemy()
+                self.reward += self.rewardIfOwnBombToHitEnemy()
 
             if self.checkIfWalkIntoObj(action):
-                reward += TRYING_TO_ENTER_WALL_PENALTY
+                self.reward += TRYING_TO_ENTER_WALL_PENALTY
 
             if self.checkIfTrappedWithBomb():
-                reward += TRAPPED_WITH_BOMB_PENALTY
-
-
-            # if self.checkIfWalkableSpace(action):
-            #     # if self.checkIfSamePlace(self.playerPrevPosX, self.playerPrevPosY):
-            #     #     # self.stepsPlayerInSamePos += 10
-            #     #     reward += SAME_GRID_PENALTY  ######## - self.stepsPlayerInSamePos
-            #     else:
-            #         self.stepsPlayerInSamePos = 0
-            #         reward += WALK_INTO_SPACE_REWARD
+                self.reward += TRAPPED_WITH_BOMB_PENALTY
 
         # Need penalty codes for "if enemy very close / in an enclosure and action is not drop bomb" //////////////////////////////////////////////////////////
 
         if not self.player.life:
-            reward += DEATH_PENALTY
+            self.reward += DEATH_PENALTY
             self.clearPlayerFromGrid()
         ######################################
-            
+        ######################################
+        
         
         # print("NormalisedState: \n", np.array_str(self.getNormalisedState()))
         # print()
@@ -746,13 +763,16 @@ class BombermanEnv(object):
         # print("Grid x: ", len(self.grid[0]))
         # print("Grid y: ", len(self.grid))
             
-        # print("Reward: ", reward)
+
+        # print("self.reward: ", self.reward)
         # print()
+
 
         # if self.player.life:
         #     time.sleep(2)
 
-        return self.getNormalisedState(), reward, self.isGameEnded(), self.playerMoving
+        return self.getNormalisedState(), self.reward, self.isGameEnded(), self.playerMoving
+
 
     def getNormalisedState(self):
         return self.gridState # / self.MAX_VAL_IN_GRID
@@ -763,6 +783,7 @@ class BombermanEnv(object):
         self.grid = GRID_BASE.copy()
         self.generateMap()
         self.gridState = self.grid.copy()
+        self.reward = 0
 
         self.explosions.clear()
         self.bombs.clear()
