@@ -131,6 +131,7 @@ class Trainer(object):
             episode_kills = self.env.count_player_kills()
             kill_score = episode_kills
             is_alive = self.env.is_player_alive()
+            live_tag = 'alive' if is_alive else 'dead'
             if not is_alive:
                 kill_score -= 1
 
@@ -145,7 +146,7 @@ class Trainer(object):
                 f"with {step} steps. "
                 f"LR: {self.agent.learning_rate:.6f}. "
                 f"EP: {self.agent.exploration_rate:.2f}. "
-                f"Kills: {episode_kills} - {is_alive}"
+                f"Kills: {episode_kills} [{live_tag}] "
                 f"MA loss: {ma_loss:.6f}"
             )
 
@@ -155,7 +156,9 @@ class Trainer(object):
             ])
 
             loss_tag = f'{loss:.3f}'.replace('.', '_')
-            self.agent.save(f'{self.model_dir}/{e}-L{loss_tag}.h5')
+            save_path = f'{self.model_dir}/{e}-L{loss_tag}.h5'
+            print('model saved to:', save_path)
+            self.agent.save(save_path)
 
     @staticmethod
     def write_logs(
