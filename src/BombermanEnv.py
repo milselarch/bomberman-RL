@@ -46,6 +46,7 @@ class BombermanEnv(object):
         # self.grid = np.array(self.grid)
         self.gridState = self.grid.copy()
         self.reward = 0
+        self._steps = 0
 
         self.WALL_GRID_VAL = 1
         self.BOX_GRID_VAL = 2
@@ -577,7 +578,12 @@ class BombermanEnv(object):
 
     #     return self.hasNoDestinationGrid
 
+    @property
+    def steps(self):
+        return self._steps
+
     def step(self, action):
+        self._steps += 1
         # print('TICK_FPS', self.tick_fps)
         dt = self.clock.tick(self.tick_fps)
 
@@ -585,7 +591,9 @@ class BombermanEnv(object):
         self.playerPrevPosY = self.player.pos_y
 
         for enemy in self.enemyList:
-            enemy.make_move(self.grid, self.bombs, self.explosions, self.enemyBlocks)
+            enemy.make_move(
+                self.grid, self.bombs, self.explosions, self.enemyBlocks
+            )
 
         if self.player.life:
             # currentPlayerDirection = self.player.direction
@@ -815,6 +823,7 @@ class BombermanEnv(object):
         self.generateMap()
         self.gridState = self.grid.copy()
         self.reward = 0
+        self._steps = 0
 
         self.explosions.clear()
         self.bombs.clear()

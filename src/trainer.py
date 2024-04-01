@@ -21,8 +21,8 @@ class Trainer(object):
         self.exploration_decay = 0.95
         self.gamma = 0.975
         self.update_target_every = 10
-        self.batch_size = 128
-        self.episodes = 101
+        self.episode_buffer_size = 128
+        self.episodes = 10000
 
         self.logs_dir = 'logs'
         self.models_dir = 'models'
@@ -55,7 +55,7 @@ class Trainer(object):
         self.agent = DQN(
             state_shape=self.env.stateShape,
             action_size=self.env.actionSpaceSize,
-            batch_size=self.batch_size,
+            batch_size=self.episode_buffer_size,
             learning_rate_max=self.learning_rate,
             learning_rate_decay=self.learning_rate_decay,
             exploration_decay=self.exploration_decay,
@@ -85,11 +85,11 @@ class Trainer(object):
     def train(self):
         state = self.env.reset()
         state = np.expand_dims(state, axis=0)
-        most_recent_losses = deque(maxlen=self.batch_size)
+        most_recent_losses = deque(maxlen=self.episode_buffer_size)
         log = []
 
         # fill up memory before training starts
-        while self.agent.memory.length() < self.batch_size:
+        while self.agent.memory.length() < self.episode_buffer_size:
             action = self.agent.act(state)
             next_state, reward, done, game_info = self.env.step(
                 self.env.actionSpace[action]
@@ -130,15 +130,22 @@ class Trainer(object):
 
             episode_kills = self.env.count_player_kills()
             kill_score = episode_kills
-            if not self.env.is_player_alive():
+            is_alive = self.env.is_player_alive()
+            if not is_alive:
                 kill_score -= 1
+
+            self.write_logs(
+                file_writer=self.t_logs_writer, episode_no=e,
+                loss_value=loss, kill_score=kill_score, is_alive=is_alive,
+                steps=self.env.steps
+            )
 
             print(
                 f"Episode {e}/{self.episodes - 1} completed "
                 f"with {step} steps. "
                 f"LR: {self.agent.learning_rate:.6f}. "
                 f"EP: {self.agent.exploration_rate:.2f}. "
-                f"Kills: {episode_kills} - {self.env.is_player_alive()}"
+                f"Kills: {episode_kills} - {is_alive}"
                 f"MA loss: {ma_loss:.6f}"
             )
 
@@ -149,3 +156,27 @@ class Trainer(object):
 
             loss_tag = f'{loss:.3f}'.replace('.', '_')
             self.agent.save(f'{self.model_dir}/{e}-L{loss_tag}.h5')
+
+    @staticmethod
+    def write_logs(
+        file_writer: tf.summary.FileWriter, episode_no: int,
+        loss_value: float, kill_score: float, is_alive: int,
+        steps: int
+    ):
+        with file_writer.as_default():
+            tf.summary.scalar(
+                'loss', data=loss_value,
+                step=episode_no
+            )
+            tf.summary.scalar(
+                'kill_score', data=kill_score,
+                step=episode_no
+            )
+            tf.summary.scalar(
+                'is_alive', data=is_alive,
+                step=episode_no
+            )
+            tf.summary.scalar(
+                'steps', data=steps,
+                step=episode_no
+            )
