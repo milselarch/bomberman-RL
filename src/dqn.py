@@ -12,7 +12,7 @@ class DQN:
         self, state_shape, action_size, learning_rate_max=0.001,
         learning_rate_decay=0.995, gamma=0.75, memory_size=2000,
         batch_size=32, exploration_max=1.0, exploration_min=0.01,
-        exploration_decay=0.995
+        exploration_decay=0.995, use_gpu: bool = True
     ):
         self.state_shape = state_shape
         self.state_tensor_shape = (-1,) + state_shape
@@ -28,6 +28,12 @@ class DQN:
         self.exploration_max = exploration_max
         self.exploration_min = exploration_min
         self.exploration_decay = exploration_decay
+
+        gpus = tf.config.list_logical_devices('GPU')
+        if use_gpu and (len(gpus) > 0):
+            self.device = gpus[0]
+        else:
+            self.device = '/cpu:0'
 
         self.model = self._build_model()
         self.target_model = self._build_model()
@@ -59,7 +65,10 @@ class DQN:
         if np.random.rand() < epsilon:
             return random.randrange(self.action_size)
 
-        return np.argmax(self.target_model.predict(state, verbose=0)[0])
+        with tf.device(self.device):
+            raw_prediction = self.target_model.predict(state, verbose=0)
+
+        return np.argmax(raw_prediction[0])
 
     def replay(self, episode=0):
         if self.memory.length() < self.batch_size:

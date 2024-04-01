@@ -4,7 +4,7 @@ import dqn
 
 from enums.algorithm import Algorithm
 from dqn import DQN
-from world_for_deep_q_learning import BombermanEnv
+from BombermanEnv import BombermanEnv
 
 pygame.display.init()
 INFO = pygame.display.Info()
