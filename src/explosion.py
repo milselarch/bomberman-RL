@@ -3,12 +3,10 @@ from typing import Union, Optional, List
 from enums.power_up_type import PowerUpType
 from power_up import PowerUp
 from bomb import Bomb
-from enemy import Enemy
-from player import Player
 
 
 class Explosion:
-    bomber: Optional[Union[Player, Enemy]] = None
+    bomber = None
 
     def __init__(self, x, y, r):
         self.sourceX = x

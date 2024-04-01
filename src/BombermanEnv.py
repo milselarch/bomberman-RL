@@ -888,12 +888,14 @@ class BombermanEnv(object):
     def is_player_alive(self):
         return self.player.life
 
-    def count_player_kills(self):
+    def count_player_kills(self) -> int:
         player_kills = 0
 
         for enemy in self.enemyList:
             if enemy.killed_by_player:
                 player_kills += 1
+
+        return player_kills
 
     def actionSpaceSample(self):
         #####################################
