@@ -159,7 +159,7 @@ class Trainer(object):
 
     @staticmethod
     def write_logs(
-        file_writer: tf.summary.FileWriter, episode_no: int,
+        file_writer, episode_no: int,
         loss_value: float, kill_score: float, is_alive: int,
         steps: int
     ):
