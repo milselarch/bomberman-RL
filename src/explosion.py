@@ -1,9 +1,14 @@
+from typing import Union, Optional, List
+
 from enums.power_up_type import PowerUpType
 from power_up import PowerUp
+from bomb import Bomb
+from enemy import Enemy
+from player import Player
+
 
 class Explosion:
-
-    bomber = None
+    bomber: Optional[Union[Player, Enemy]] = None
 
     def __init__(self, x, y, r):
         self.sourceX = x
@@ -13,8 +18,7 @@ class Explosion:
         self.frame = 0
         self.sectors = []
 
-    def explode(self, map, bombs, b, power_ups):
-
+    def explode(self, map, bombs: List[Bomb], b: Bomb, power_ups):
         self.bomber = b.bomber
         self.sectors.extend(b.sectors)
         bombs.remove(b)
