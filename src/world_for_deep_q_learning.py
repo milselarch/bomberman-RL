@@ -26,10 +26,11 @@ GRID_BASE = np.array(GRID_BASE_LIST)
 
 
 class BombermanEnv(object):
-    def __init__(self, surface, path, 
-                    player_alg, en1_alg, en2_alg, 
-                    en3_alg, scale):
-
+    def __init__(
+        self, surface, path, player_alg, en1_alg, en2_alg,
+        en3_alg, scale, tick_fps: int = 15
+    ):
+        self.tick_fps = tick_fps
         self.surface = surface
         self.path = path
         self.scale = scale
@@ -207,9 +208,11 @@ class BombermanEnv(object):
         for y in self.explosions:
             for x in y.sectors:
                 self.surface.blit(self.explosionImages[y.frame], (x[0] * self.scale, x[1] * self.scale, self.scale, self.scale))
+
         if self.player.life:
             self.surface.blit(self.player.animation[self.player.direction][self.player.frame],
                 (self.player.pos_x * (self.scale / 4), self.player.pos_y * (self.scale / 4), self.scale, self.scale))
+
         for en in self.enemyList:
             if en.life:
                 self.surface.blit(en.animation[en.direction][en.frame],
@@ -282,7 +285,6 @@ class BombermanEnv(object):
         for gridCoordsTuple in explosionObj.sectors:
                 # Set to 0 as nothing should be left if the explosion occurred on the grid square
                 self.gridState[gridCoordsTuple[0]][gridCoordsTuple[1]] = 0
-
 
     def isGameEnded(self):
         if not self.player.life:
@@ -525,7 +527,8 @@ class BombermanEnv(object):
     #     return self.hasNoDestinationGrid
 
     def step(self, action):
-        dt = self.clock.tick(15)
+        # print('TICK_FPS', self.tick_fps)
+        dt = self.clock.tick(self.tick_fps)
 
         self.playerPrevPosX = self.player.pos_x
         self.playerPrevPosY = self.player.pos_y
@@ -643,7 +646,6 @@ class BombermanEnv(object):
         """ FOR RENDERING THE GAME IN THE WINDOW """
         ############################################
         self.draw()
-        
 
         hasDroppedBomb = False
         playerBomb = None

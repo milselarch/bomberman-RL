@@ -1,8 +1,11 @@
+import os
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 import numpy as np
-from collections import deque
 import pygame
 
-
+from collections import deque
 from enums.algorithm import Algorithm
 from world_for_deep_q_learning import BombermanEnv
 from dqn import DQN
@@ -28,7 +31,10 @@ if __name__ == '__main__':
     show_path = True
     surface = pygame.display.set_mode(WINDOW_SIZE)
 
-    env = BombermanEnv(surface, show_path, player_alg, en1_alg, en2_alg, en3_alg, TILE_SIZE)
+    env = BombermanEnv(
+        surface, show_path, player_alg, en1_alg, en2_alg, en3_alg,
+        TILE_SIZE, tick_fps=0
+    )
     # env = BombermanEnv(None, None, Algorithm.PLAYER, Algorithm.DFS, Algorithm.DIJKSTRA, Algorithm.DFS, None)
 
     # model_path = "models/100.h5"
@@ -56,7 +62,8 @@ if __name__ == '__main__':
     while agent.memory.length() < BATCH_SIZE:
         action = agent.act(state)
         next_state, reward, done, game_info = env.step(env.actionSpace[action])
-        next_state = np.expand_dims(next_state, axis=0)     # Change state shape from (Height, Width) to (Height, Width, 1)
+        # Change state shape from (Height, Width) to (Height, Width, 1)
+        next_state = np.expand_dims(next_state, axis=0)
         agent.remember(state, action, reward, next_state, done)
         state = next_state
 
@@ -69,7 +76,8 @@ if __name__ == '__main__':
 
         while not done:
             action = agent.act(state)
-            next_state, reward, done, game_info = env.step(env.actionSpace[action])
+            step_result = env.step(env.actionSpace[action])
+            next_state, reward, done, game_info = step_result
             next_state = np.expand_dims(next_state, axis=0)
             agent.remember(state, action, reward, next_state, done)
 
@@ -80,7 +88,7 @@ if __name__ == '__main__':
             most_recent_losses.append(loss)
             ma_loss = np.array(most_recent_losses).mean()
 
-            if loss != None:
+            if loss is not None:
                 print(f"Step: {step}. -- Loss: {loss}", end="          \r")
 
             if done:
