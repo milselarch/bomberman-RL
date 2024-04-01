@@ -1,8 +1,10 @@
 import numpy as np
-from enums.algorithm import Algorithm
 import pygame
+import dqn
+
+from enums.algorithm import Algorithm
 from dqn import DQN
-from world_for_deep_q_learning import BombermanEnv
+from BombermanEnv import BombermanEnv
 
 pygame.display.init()
 INFO = pygame.display.Info()
@@ -19,9 +21,9 @@ model_path = "models/196.h5"
 
 env = BombermanEnv(surface, show_path, player_alg, en1_alg, en2_alg, en3_alg, TILE_SIZE)
 agent = DQN(
-        state_shape=env.stateShape,
-        action_size=env.actionSpaceSize
-    )
+    state_shape=env.stateShape,
+    action_size=env.actionSpaceSize
+)
 agent.load(model_path)
 
 state = env.reset()

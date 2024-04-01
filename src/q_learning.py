@@ -1,11 +1,10 @@
 import numpy as np
-from collections import deque
-from matplotlib import pyplot as plt
 import pygame
 
-
+from collections import deque
+from matplotlib import pyplot as plt
 from enums.algorithm import Algorithm
-from world_for_deep_q_learning import BombermanEnv
+from BombermanEnv import BombermanEnv
 from dqn import DQN
 
 if __name__ == '__main__':
@@ -29,8 +28,10 @@ if __name__ == '__main__':
     show_path = True
     surface = pygame.display.set_mode(WINDOW_SIZE)
 
-    env = BombermanEnv(surface, show_path, player_alg, en1_alg, en2_alg, en3_alg, TILE_SIZE)
-
+    env = BombermanEnv(
+        surface, show_path, player_alg, en1_alg,
+        en2_alg, en3_alg, TILE_SIZE
+    )
 
     # model hyperparameters
     ALPHA = 0.1
@@ -48,9 +49,11 @@ if __name__ == '__main__':
     for i in range(numGames):
         if i % 5000 == 0:
             print('starting game ', i)
+
         done = False
         epRewards = 0
         currentState = env.reset()
+
         while not done:
             rand = np.random.random()
             action = env.maxAction(Q, currentState, env.actionSpace) if rand < (1-EPS) else env.actionSpaceSample()
@@ -65,10 +68,12 @@ if __name__ == '__main__':
             actionTaken = env.maxAction(Q, nextState, env.actionSpace)
             Q[tupleCurrentState, action] = Q[tupleCurrentState, action] + ALPHA*(reward + GAMMA * Q[tupleNextState, actionTaken] - Q[tupleCurrentState, action])
             currentState = nextState
+
         if EPS - 2 / numGames > 0:
             EPS -= 2 / numGames
         else:
             EPS = 0
+
         totalRewards[i] = epRewards
 
     plt.plot(totalRewards)
