@@ -63,6 +63,8 @@ if __name__ == '__main__':
             tupleCurrentState = tuple(map(tuple, currentState))
             tupleNextState = tuple(map(tuple, nextState))
 
+            print((tupleCurrentState, action))
+
             actionTaken = env.maxAction(Q, nextState, env.actionSpace)
             Q[tupleCurrentState, action] = Q[tupleCurrentState, action] + ALPHA*(reward + GAMMA * Q[tupleNextState, actionTaken] - Q[tupleCurrentState, action])
             currentState = nextState
