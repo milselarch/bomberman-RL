@@ -3,23 +3,26 @@ import math
 
 from bomb import Bomb
 from enums.power_up_type import PowerUpType
+from Actor import Actor
 
 
-class Player:
+class Player(Actor):
     pos_x = 4
     pos_y = 4
     direction = 0
     frame = 0
     animation = []
     range = 3
-    bomb_limit = 1
-
     TILE_SIZE = 4
 
     def __init__(self):
+        super().__init__()
         self.life = True
 
-    def move(self, dx, dy, grid, enemys, power_ups):
+    def is_player(self) -> bool:
+        return True
+
+    def move(self, dx, dy, grid, enemies, power_ups):
         tempx = int(self.pos_x / Player.TILE_SIZE)
         tempy = int(self.pos_y / Player.TILE_SIZE)
 
@@ -31,7 +34,7 @@ class Player:
             for j in range(len(grid[i])):
                 map[i].append(grid[i][j])
 
-        for x in enemys:
+        for x in enemies:
             if x == self:
                 continue
             elif not x.life:
@@ -77,8 +80,11 @@ class Player:
                     and pu.pos_y == math.ceil(self.pos_y / Player.TILE_SIZE):
                 self.consume_power_up(pu, power_ups)
 
-    def plant_bomb(self, map):
-        b = Bomb(self.range, round(self.pos_x / Player.TILE_SIZE), round(self.pos_y / Player.TILE_SIZE), map, self)
+    def plant_bomb(self, map) -> Bomb:
+        b = Bomb(
+            self.range, round(self.pos_x / Player.TILE_SIZE),
+            round(self.pos_y / Player.TILE_SIZE), map, self
+        )
         return b
 
     def check_death(self, exp):

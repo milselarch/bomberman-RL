@@ -35,7 +35,6 @@ if __name__ == '__main__':
 
     # model hyperparameters
     ALPHA = 0.1
-    GAMMA = 1.0
     EPS = 1.0
 
     Q = {}
@@ -56,7 +55,7 @@ if __name__ == '__main__':
 
         while not done:
             rand = np.random.random()
-            action = env.maxAction(Q, currentState, env.actionSpace) if rand < (1-EPS) else env.actionSpaceSample()
+            action = env.max_action(Q, currentState, env.actionSpace) if rand < (1 - EPS) else env.actionSpaceSample()
             nextState, reward, done, info = env.step(action)
             epRewards += reward
             
@@ -65,7 +64,7 @@ if __name__ == '__main__':
 
             print((tupleCurrentState, action))
 
-            actionTaken = env.maxAction(Q, nextState, env.actionSpace)
+            actionTaken = env.max_action(Q, nextState, env.actionSpace)
             Q[tupleCurrentState, action] = Q[tupleCurrentState, action] + ALPHA*(reward + GAMMA * Q[tupleNextState, actionTaken] - Q[tupleCurrentState, action])
             currentState = nextState
 

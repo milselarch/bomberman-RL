@@ -14,3 +14,8 @@ Learning to play bomberman using reinforcement learning with PyTorch
 `source venv/bin/activate && cd src`
 2. Run training  
 `python training.py`
+
+### View tensorboard logs
+1. `tensorboard --logdir <LOG_DIR>`  
+example: 
+`tensorboard --logdir src/logs/ddqn-240401-2155`
