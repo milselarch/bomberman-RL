@@ -88,7 +88,7 @@ class DQN:
 
         return np.argmax(raw_prediction[0])
 
-    def replay(self, episode=0):
+    def replay(self, episode_no: int = 0):
         if self.memory.length() < self.batch_size:
             return None
 
@@ -127,9 +127,9 @@ class DQN:
             states, targets, sample_weight=weights
         )
 
-        self.exploration_rate = self.exploration_max*self.exploration_decay**episode
+        self.exploration_rate = self.exploration_max * self.exploration_decay ** episode_no
         self.exploration_rate = max(self.exploration_min, self.exploration_rate)
-        self.learning_rate = self.learning_rate_max*self.learning_rate_decay**episode
+        self.learning_rate = self.learning_rate_max * self.learning_rate_decay ** episode_no
         tf.keras.backend.set_value(self.model.optimizer.learning_rate, self.learning_rate)
 
         return loss
