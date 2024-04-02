@@ -124,7 +124,7 @@ class DQN:
         # For learning: Adjust Q values of taken actions to match the computed targets
         q_values[batch_indices, actions] = targets
         loss = self.model.train_on_batch(
-            states, targets, sample_weight=weights
+            states, q_values, sample_weight=weights
         )
 
         self.exploration_rate = self.exploration_max * self.exploration_decay ** episode_no
