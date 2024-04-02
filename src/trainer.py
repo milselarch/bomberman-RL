@@ -23,7 +23,8 @@ class Trainer(object):
 
         self.learning_rate = 1e-4
         self.learning_rate_decay = 1  # 0.99
-        self.exploration_decay = 0.99  # 0.95
+        self.exploration_decay = 0.999  # 0.95
+        self.exploration_min = 0.001  # 0.01
         self.gamma = 0.995  # 0.975
         self.update_target_every = 10
         self.episode_buffer_size = 128
@@ -55,7 +56,7 @@ class Trainer(object):
             self.surface, self.show_path, self.player_alg,
             self.en1_alg, self.en2_alg, self.en3_alg,
             self.tile_size, incentives=incentives,
-            simulate_time=False, tick_fps=0
+            simulate_time=True, tick_fps=15
         )
 
         self.agent = DQN(
@@ -65,6 +66,7 @@ class Trainer(object):
             learning_rate_max=self.learning_rate,
             learning_rate_decay=self.learning_rate_decay,
             exploration_decay=self.exploration_decay,
+            exploration_min=self.exploration_min,
             gamma=self.gamma
         )
         # agent.load(model_path)
