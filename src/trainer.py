@@ -152,7 +152,8 @@ class Trainer(object):
                 file_writer=self.t_logs_writer, episode_no=e,
                 loss_value=loss, kill_score=kill_score, is_alive=is_alive,
                 game_duration=self.env.steps, kills=self.env.player_kills,
-                boxes_destroyed=self.env.player_boxes_destroyed
+                boxes_destroyed=self.env.player_boxes_destroyed,
+                score=game_score
             )
 
             print(
@@ -176,7 +177,8 @@ class Trainer(object):
     def write_logs(
         file_writer, episode_no: int,
         loss_value: float, kill_score: float, is_alive: int,
-        game_duration: int, kills: int, boxes_destroyed: int
+        game_duration: int, kills: int, boxes_destroyed: int,
+        score: int
     ):
         with file_writer.as_default():
             tf.summary.scalar(
@@ -196,4 +198,7 @@ class Trainer(object):
             )
             tf.summary.scalar(
                 'boxes_destroyed', data=boxes_destroyed, step=episode_no
+            )
+            tf.summary.scalar(
+                'score', data=score, step=episode_no
             )
