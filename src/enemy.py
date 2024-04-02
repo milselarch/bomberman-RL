@@ -1,7 +1,8 @@
-from typing import List
-
 import pygame
 import random
+
+from Actor import Actor
+from typing import List, Tuple
 from bomb import Bomb
 from explosion import Explosion
 from node import Node
@@ -9,12 +10,13 @@ from enums.algorithm import Algorithm
 from player import Player
 
 
-class Enemy:
+class Enemy(Actor):
     dire = [[1, 0, 1], [0, 1, 0], [-1, 0, 3], [0, -1, 2]]
 
     TILE_SIZE = 4
 
     def __init__(self, x, y, alg):
+        super().__init__()
         self.life = True
         self.killed_by_player = False
 
@@ -26,9 +28,11 @@ class Enemy:
         self.frame = 0
         self.animation = []
         self.range = 3
-        self.bomb_limit = 1
         self.plant = False
         self.algorithm = alg
+
+    def is_player(self) -> bool:
+        return False
 
     def move(self, map, bombs, explosions, enemy):
         if self.direction == 0:
@@ -78,7 +82,15 @@ class Enemy:
         self.bomb_limit -= 1
         return b
 
-    def check_death(self, explosions: List[Explosion]):
+    def check_death(
+        self, explosions: List[Explosion]
+    ) -> Tuple[bool, bool]:
+        """
+        :param explosions: currently ongoing explosions
+        :return:
+        whether enemy was just killed,
+        and whether the explosion was from a player bomb
+        """
         for e in explosions:
             # whether the explosion is from a player bomb
             from_player = isinstance(e.bomber, Player)
@@ -92,7 +104,9 @@ class Enemy:
                 if is_in_explosion_path:
                     self.life = False
                     self.killed_by_player = from_player
-                    return
+                    return True, from_player
+
+        return False, False
 
     def dfs(self, grid):
         new_path = [[int(self.pos_x / Enemy.TILE_SIZE), int(self.pos_y / Enemy.TILE_SIZE)]]

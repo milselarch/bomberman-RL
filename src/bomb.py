@@ -1,12 +1,15 @@
+from Actor import Actor
+
+
 class Bomb:
     frame = 0
 
-    def __init__(self, r, x, y, map, bomber):
+    def __init__(self, r, x, y, map, bomber: Actor):
         self.range = r
         self.pos_x = x
         self.pos_y = y
         self.time = 7000 ########### TOO SHORT: 3000
-        self.bomber = bomber
+        self.bomber: Actor = bomber
         self.sectors = []
         self.get_range(map)
 

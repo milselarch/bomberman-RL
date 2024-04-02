@@ -4,7 +4,10 @@ import numpy as np
 import pygame
 import matplotlib.pyplot as plt
 
-from typing import List
+from typing import List, Tuple
+
+from GridValues import GridValues
+from Incentives import Incentives
 from enums.algorithm import Algorithm
 from player import Player
 from enemy import Enemy
@@ -31,38 +34,43 @@ GRID_BASE = np.array(GRID_BASE_LIST)
 
 
 class BombermanEnv(object):
+    WALL_GRID_VAL = GridValues.WALL_GRID_VAL
+    BOX_GRID_VAL = GridValues.BOX_GRID_VAL
+    BOMB_GRID_VAL = GridValues.BOMB_GRID_VAL
+    EXPLOSION_GRID_VAL = GridValues.EXPLOSION_GRID_VAL
+    ENEMY_GRID_VAL = GridValues.ENEMY_GRID_VAL
+    PLAYER_GRID_VAL = GridValues.PLAYER_GRID_VAL
+    # 1 is for indestructible walls
+    # 2 is for destructible walls
+    # 3 is for bombs
+    # 4 for enemies
+    # 5 for player
+    # 4+3=7 for enemy dropping bomb
+    # 5+3=8 for player dropping bomb
+    # 9 for explosion.
+    # So max is 9.
+
     def __init__(
         self, surface, path, player_alg, en1_alg, en2_alg,
-        en3_alg, scale, tick_fps: int = 15
+        en3_alg, scale, tick_fps: int = 15,
+        simulate_time: bool = False,
+        incentives: Incentives = Incentives()
     ):
+        self.incentives = incentives
         self.tick_fps = tick_fps
+        self.simulate_time = simulate_time
+
         self.surface = surface
         self.path = path
         self.scale = scale
 
         # self.grid = [row[:] for row in GRID_BASE]
         self.grid = GRID_BASE.copy()
-        self.generateMap()
+        self.generate_map()
         # self.grid = np.array(self.grid)
-        self.gridState = self.grid.copy()
-        self.reward = 0
+        self.grid_state = self.grid.copy()
         self._steps = 0
 
-        self.WALL_GRID_VAL = 1
-        self.BOX_GRID_VAL = 2
-        self.BOMB_GRID_VAL = 3
-        self.EXPLOSION_GRID_VAL = 9
-        self.ENEMY_GRID_VAL = 4
-        self.PLAYER_GRID_VAL = 5
-        # 1 is for indestructible walls
-        # 2 is for destructible walls
-        # 3 is for bombs
-        # 4 for enemies
-        # 5 for player
-        # 4+3=7 for enemy dropping bomb
-        # 5+3=8 for player dropping bomb
-        # 9 for explosion. 
-        # So max is 9.
         self.MAX_VAL_IN_GRID = self.EXPLOSION_GRID_VAL
 
         self.m = len(self.grid)  # Height of whole map, ie. no. of rows
@@ -255,7 +263,7 @@ class BombermanEnv(object):
 
         pygame.display.update()
 
-    def generateMap(self):
+    def generate_map(self):
         ####################################################################
         """ This is just generating destroyable boxes if I am not wrong. """
         ####################################################################
@@ -266,50 +274,68 @@ class BombermanEnv(object):
                     continue
                 elif (i < 3 or i > len(self.grid) - 4) and (j < 3 or j > len(self.grid[i]) - 4):
                     continue
+
                 if random.randint(0, 9) < 7:
-                    self.grid[i][j] = 2
+                    self.grid[i][j] = self.BOX_GRID_VAL
+                    pass
 
         return
 
     def setEnemiesInGrid(self):
         for i in range(len(self.enemyList)):
-            self.gridState[self.enemiesPrevGridPosX[i]][self.enemiesPrevGridPosY[i]] -= self.ENEMY_GRID_VAL
-            if self.gridState[self.enemiesPrevGridPosX[i]][self.enemiesPrevGridPosY[i]] < 0:
-                self.gridState[self.enemiesPrevGridPosX[i]][self.enemiesPrevGridPosY[i]] = 0
+            self.grid_state[self.enemiesPrevGridPosX[i]][self.enemiesPrevGridPosY[i]] -= self.ENEMY_GRID_VAL
+            if self.grid_state[self.enemiesPrevGridPosX[i]][self.enemiesPrevGridPosY[i]] < 0:
+                self.grid_state[self.enemiesPrevGridPosX[i]][self.enemiesPrevGridPosY[i]] = 0
 
             self.enemiesPrevGridPosX[i] = (int(self.enemyList[i].pos_x / Enemy.TILE_SIZE))
             self.enemiesPrevGridPosY[i] = (int(self.enemyList[i].pos_y / Enemy.TILE_SIZE))
-            self.gridState[self.enemiesPrevGridPosX[i]][self.enemiesPrevGridPosY[i]] += self.ENEMY_GRID_VAL
+            self.grid_state[self.enemiesPrevGridPosX[i]][self.enemiesPrevGridPosY[i]] += self.ENEMY_GRID_VAL
 
     def clearEnemyFromGrid(self, enemy):
         enemyGridPosX = (int(enemy.pos_x / Enemy.TILE_SIZE))
         enemyGridPosY = (int(enemy.pos_y / Enemy.TILE_SIZE))
 
-        if self.gridState[enemyGridPosX][enemyGridPosY] >= self.ENEMY_GRID_VAL:
-            self.gridState[enemyGridPosX][enemyGridPosY] -= self.ENEMY_GRID_VAL
+        if self.grid_state[enemyGridPosX][enemyGridPosY] >= self.ENEMY_GRID_VAL:
+            self.grid_state[enemyGridPosX][enemyGridPosY] -= self.ENEMY_GRID_VAL
 
     def setPlayerInGrid(self):
-        self.gridState[self.playerPrevGridPosX][self.playerPrevGridPosY] -= self.PLAYER_GRID_VAL
-        if self.gridState[self.playerPrevGridPosX][self.playerPrevGridPosY] < 0:
-            self.gridState[self.playerPrevGridPosX][self.playerPrevGridPosY] = 0
+        self.grid_state[self.playerPrevGridPosX][self.playerPrevGridPosY] -= self.PLAYER_GRID_VAL
+        if self.grid_state[self.playerPrevGridPosX][self.playerPrevGridPosY] < 0:
+            self.grid_state[self.playerPrevGridPosX][self.playerPrevGridPosY] = 0
 
         self.playerPrevGridPosX = int(self.player.pos_x / Player.TILE_SIZE)
         self.playerPrevGridPosY = int(self.player.pos_y / Player.TILE_SIZE)
-        self.gridState[self.playerPrevGridPosX][self.playerPrevGridPosY] += self.PLAYER_GRID_VAL
+        self.grid_state[self.playerPrevGridPosX][self.playerPrevGridPosY] += self.PLAYER_GRID_VAL
 
     def clearPlayerFromGrid(self):
-        if self.gridState[self.playerPrevGridPosX][self.playerPrevGridPosY] >= self.PLAYER_GRID_VAL:
-            self.gridState[self.playerPrevGridPosX][self.playerPrevGridPosX] -= self.PLAYER_GRID_VAL
+        if self.grid_state[self.playerPrevGridPosX][self.playerPrevGridPosY] >= self.PLAYER_GRID_VAL:
+            self.grid_state[self.playerPrevGridPosX][self.playerPrevGridPosX] -= self.PLAYER_GRID_VAL
 
-    def setExplosionsInGrid(self):
+    def set_explosions_in_grid(self) -> int:
+        player_destroyed_boxes = 0
+
         for i in range(len(self.explosions)):
-            for gridCoordsTuple in self.explosions[i].sectors:
-                self.gridState[gridCoordsTuple[0]][gridCoordsTuple[1]] = self.EXPLOSION_GRID_VAL
+            explosion = self.explosions[i]
+
+            for grid_coord in explosion.sectors:
+                y, x = grid_coord
+
+                is_player_destroyed_box = (
+                    explosion.bomber.is_player() and
+                    (self.grid_state[y][x] == self.BOX_GRID_VAL)
+                )
+
+                if is_player_destroyed_box:
+                    player_destroyed_boxes += 1
+
+                self.grid_state[y][x] = self.EXPLOSION_GRID_VAL
+
+        return player_destroyed_boxes
 
     def clearExplosionFromGrid(self, explosionObj):
         for gridCoordsTuple in explosionObj.sectors:
             # Set to 0 as nothing should be left if the explosion occurred on the grid square
-            self.gridState[gridCoordsTuple[0]][gridCoordsTuple[1]] = 0
+            self.grid_state[gridCoordsTuple[0]][gridCoordsTuple[1]] = 0
 
     def isGameEnded(self):
         if not self.player.life:
@@ -321,23 +347,36 @@ class BombermanEnv(object):
 
         return True
 
-    def updateBombs(self, dt):
+    def update_bombs(self, dt) -> Tuple[int, int]:
+        """
+        :param dt:
+        :return:
+        number of player kills
+        """
+        player_kills, player_destroyed_boxes = 0, 0
+
         for bomb in self.bombs:
             bomb.update(dt)
+
             if bomb.time < 1:
                 bomb.bomber.bomb_limit += 1
                 self.grid[bomb.pos_x][bomb.pos_y] = 0
-                self.gridState[bomb.pos_x][bomb.pos_y] -= self.BOMB_GRID_VAL
-                if self.gridState[bomb.pos_x][bomb.pos_y] < 0:
-                    self.gridState[bomb.pos_x][bomb.pos_y] = 0
+                self.grid_state[bomb.pos_x][bomb.pos_y] -= self.BOMB_GRID_VAL
+                if self.grid_state[bomb.pos_x][bomb.pos_y] < 0:
+                    self.grid_state[bomb.pos_x][bomb.pos_y] = 0
 
                 explosion = Explosion(bomb.pos_x, bomb.pos_y, bomb.range)
-                explosion.explode(self.grid, self.bombs, bomb, self.powerUps)
-                explosion.clear_sectors(self.grid, np.random, self.powerUps)
                 self.explosions.append(explosion)
+                explosion.explode(self.grid, self.bombs, bomb, self.powerUps)
+                destroyed_boxes = explosion.clear_sectors(
+                    self.grid, np.random, self.powerUps
+                )
+
+                if explosion.bomber.is_player():
+                    player_destroyed_boxes += destroyed_boxes
 
             elif bomb.time < 5:
-                self.setExplosionsInGrid()
+                self.set_explosions_in_grid()
 
         if self.player not in self.enemyList:
             self.player.check_death(self.explosions)
@@ -345,7 +384,12 @@ class BombermanEnv(object):
                 self.clearPlayerFromGrid()
 
         for enemy in self.enemyList:
-            enemy.check_death(self.explosions)
+            _, killed_by_player = enemy.check_death(self.explosions)
+
+            if killed_by_player:
+                assert not enemy.life
+                player_kills += 1
+
             if not enemy.life:
                 self.clearEnemyFromGrid(enemy)
 
@@ -354,6 +398,8 @@ class BombermanEnv(object):
             if explosion.time < 1:
                 self.explosions.remove(explosion)
                 self.clearExplosionFromGrid(explosion)
+
+        return player_kills, player_destroyed_boxes
 
     def checkIfInBombRange(self):
         playerPosX = self.player.pos_x
@@ -585,8 +631,12 @@ class BombermanEnv(object):
     def step(self, action):
         self._steps += 1
         # print('TICK_FPS', self.tick_fps)
-        dt = self.clock.tick(self.tick_fps)
+        if self.simulate_time:
+            dt = 1000 // self.tick_fps
+        else:
+            dt = self.clock.tick(self.tick_fps)
 
+        # print('DT', dt)
         self.playerPrevPosX = self.player.pos_x
         self.playerPrevPosY = self.player.pos_y
 
@@ -718,10 +768,21 @@ class BombermanEnv(object):
                 playerBomb = self.player.plant_bomb(self.grid)
                 self.bombs.append(playerBomb)
                 self.grid[playerBomb.pos_x][playerBomb.pos_y] = self.BOMB_GRID_VAL
-                self.gridState[playerBomb.pos_x][playerBomb.pos_y] += self.BOMB_GRID_VAL
+                self.grid_state[playerBomb.pos_x][playerBomb.pos_y] += self.BOMB_GRID_VAL
                 self.player.bomb_limit -= 1
 
-        self.updateBombs(dt)
+        I: Incentives = self.incentives
+        reward: float = 0
+
+        player_kills, player_destroyed_boxes = self.update_bombs(dt)
+        destroy_enemy_reward = I.DESTROY_ENEMY_REWARD * player_kills
+        destroy_box_reward = I.DESTROY_BOX_REWARD * player_destroyed_boxes
+        reward += destroy_enemy_reward + destroy_box_reward
+
+        """
+        if (destroy_box_reward != 0) or (destroy_enemy_reward != 0):
+            print("DESTROY", destroy_box_reward, destroy_enemy_reward)
+        """
 
         if not self.gameEnded:
             self.gameEnded = self.isGameEnded()
@@ -729,18 +790,6 @@ class BombermanEnv(object):
         ######################################
         """ REWARDS AND PENALTIES SECTION """
         ######################################
-        IN_BOMB_RANGE_PENALTY = -5
-        NOT_IN_BOMB_RANGE_PENALTY = 5
-        MOVING_INTO_BOMB_RANGE_PENALTY = -10
-        MOVING_FROM_BOMB_RANGE_REWARD = 10
-        NOT_MOVING_FROM_BOMB_RANGE_PENALTY = -10
-        WAITING_BESIDE_BOMB_RANGE_REWARD = 100
-        TRYING_TO_ENTER_WALL_PENALTY = -5
-        BOXES_IN_BOMB_RANGE_REWARD = 10
-        WALK_INTO_SPACE_REWARD = 5
-        SAME_GRID_PENALTY = -5
-        TRAPPED_WITH_BOMB_PENALTY = -10
-        DEATH_PENALTY = -100
 
         """ 
         Very high positive and negative rewards to prevent AI 
@@ -753,38 +802,40 @@ class BombermanEnv(object):
             # Only give reward if player is not moving between grid squares.
 
             if self.checkIfInBombRange():
-                self.reward += IN_BOMB_RANGE_PENALTY
+                reward += I.IN_BOMB_RANGE_PENALTY
             else:
-                self.reward += NOT_IN_BOMB_RANGE_PENALTY
+                reward += I.NOT_IN_BOMB_RANGE_PENALTY
 
             if self.checkIfWalkingToBombRange():
-                self.reward += MOVING_INTO_BOMB_RANGE_PENALTY
+                reward += I.MOVING_INTO_BOMB_RANGE_PENALTY
 
             if self.checkIfWalkingOutOfBombRange():
-                self.reward += MOVING_FROM_BOMB_RANGE_REWARD
+                reward += I.MOVING_FROM_BOMB_RANGE_REWARD
             else:
-                self.reward += NOT_MOVING_FROM_BOMB_RANGE_PENALTY
+                reward += I.NOT_MOVING_FROM_BOMB_RANGE_PENALTY
 
             if self.checkIfWaitingBesideBombRange(action):
-                self.reward += WAITING_BESIDE_BOMB_RANGE_REWARD
+                reward += I.WAITING_BESIDE_BOMB_RANGE_REWARD
 
             if hasDroppedBomb and self.checkIfOwnBombToHitBoxes(playerBomb):
-                self.reward += BOXES_IN_BOMB_RANGE_REWARD
+                reward += I.BOXES_IN_BOMB_RANGE_REWARD
 
             if hasDroppedBomb and self.checkIfOwnBombToHitEnemy(playerBomb):
-                self.reward += self.rewardIfOwnBombToHitEnemy()
+                reward += self.rewardIfOwnBombToHitEnemy()
 
             if self.checkIfWalkIntoObj(action):
-                self.reward += TRYING_TO_ENTER_WALL_PENALTY
+                reward += I.TRYING_TO_ENTER_WALL_PENALTY
 
             if self.checkIfTrappedWithBomb():
-                self.reward += TRAPPED_WITH_BOMB_PENALTY
+                reward += I.TRAPPED_WITH_BOMB_PENALTY
 
         # Need penalty codes for "if enemy very close / in an enclosure and action is not drop bomb" //////////////////////////////////////////////////////////
 
         if not self.player.life:
-            self.reward += DEATH_PENALTY
+            reward += I.DEATH_PENALTY
+            # print('DIE', I.DEATH_PENALTY)
             self.clearPlayerFromGrid()
+
         ######################################
         ######################################
 
@@ -811,18 +862,17 @@ class BombermanEnv(object):
         # if self.player.life:
         #     time.sleep(2)
 
-        return self.getNormalisedState(), self.reward, self.isGameEnded(), self.playerMoving
+        return self.getNormalisedState(), reward, self.isGameEnded(), self.playerMoving
 
     def getNormalisedState(self):
-        return self.gridState  # / self.MAX_VAL_IN_GRID
+        return self.grid_state  # / self.MAX_VAL_IN_GRID
 
     def reset(self):
         # self.grid = [row[:] for row in GRID_BASE]
         # self.grid = np.array(GRID_BASE)
         self.grid = GRID_BASE.copy()
-        self.generateMap()
-        self.gridState = self.grid.copy()
-        self.reward = 0
+        self.generate_map()
+        self.grid_state = self.grid.copy()
         self._steps = 0
 
         self.explosions.clear()

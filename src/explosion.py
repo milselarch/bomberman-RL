@@ -1,5 +1,6 @@
 from typing import Union, Optional, List
 
+from GridValues import GridValues
 from enums.power_up_type import PowerUpType
 from power_up import PowerUp
 from bomb import Bomb
@@ -35,17 +36,22 @@ class Explosion:
                     x.bomber.bomb_limit += 1
                     self.explode(map, bombs, x, power_ups)
 
-    def clear_sectors(self, map, random, power_ups):
+    def clear_sectors(self, map, random, power_ups) -> int:
+        destroyed_boxes = 0
 
         for i in self.sectors:
-            if map[i[0]][i[1]] == 2:
+            if map[i[0]][i[1]] == GridValues.BOX_GRID_VAL:
+                destroyed_boxes += 1
+
                 r = random.randint(0, 9)
                 if r == 0:
                     power_ups.append(PowerUp(i[0], i[1], PowerUpType.BOMB))
                 elif r == 1:
                     power_ups.append(PowerUp(i[0], i[1], PowerUpType.FIRE))
 
-            map[i[0]][i[1]] = 0
+            map[i[0]][i[1]] = GridValues.EMPTY_GRID_VAL
+
+        return destroyed_boxes
 
     def update(self, dt):
 
