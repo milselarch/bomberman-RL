@@ -141,7 +141,8 @@ class Trainer(object):
             self.write_logs(
                 file_writer=self.t_logs_writer, episode_no=e,
                 loss_value=loss, kill_score=kill_score, is_alive=is_alive,
-                steps=self.env.steps
+                alive_duration=self.env.steps, kills=self.env.player_kills,
+                boxes_destroyed=self.env.player_boxes_destroyed
             )
 
             print(
@@ -150,7 +151,7 @@ class Trainer(object):
                 f"LR: {self.agent.learning_rate:.6f}. "
                 f"EP: {self.agent.exploration_rate:.2f}. "
                 f"Kills: {episode_kills} [{live_tag}] "
-                f"MA loss: {ma_loss:.6f} "
+                f"boxes: {self.env.player_boxes_destroyed} "
                 f"loss: {loss:.6f}"
             )
 
@@ -163,22 +164,24 @@ class Trainer(object):
     def write_logs(
         file_writer, episode_no: int,
         loss_value: float, kill_score: float, is_alive: int,
-        steps: int
+        alive_duration: int, kills: int, boxes_destroyed: int
     ):
         with file_writer.as_default():
             tf.summary.scalar(
-                'loss', data=loss_value,
-                step=episode_no
+                'loss', data=loss_value, step=episode_no
             )
             tf.summary.scalar(
-                'kill_score', data=kill_score,
-                step=episode_no
+                'kill_score', data=kill_score, step=episode_no
             )
             tf.summary.scalar(
-                'is_alive', data=is_alive,
-                step=episode_no
+                'is_alive', data=is_alive, step=episode_no
             )
             tf.summary.scalar(
-                'steps', data=steps,
-                step=episode_no
+                'steps', data=alive_duration, step=episode_no
+            )
+            tf.summary.scalar(
+                'kills', data=kills, step=episode_no
+            )
+            tf.summary.scalar(
+                'boxes_destroyed', data=boxes_destroyed, step=episode_no
             )

@@ -69,6 +69,8 @@ class BombermanEnv(object):
         self.generate_map()
         # self.grid = np.array(self.grid)
         self.grid_state = self.grid.copy()
+        self.player_boxes_destroyed = 0
+        self.player_kills = 0
         self._steps = 0
 
         self.MAX_VAL_IN_GRID = self.EXPLOSION_GRID_VAL
@@ -775,6 +777,9 @@ class BombermanEnv(object):
         reward: float = 0
 
         player_kills, player_destroyed_boxes = self.update_bombs(dt)
+        self.player_boxes_destroyed += player_destroyed_boxes
+        self.player_kills += player_kills
+
         destroy_enemy_reward = I.DESTROY_ENEMY_REWARD * player_kills
         destroy_box_reward = I.DESTROY_BOX_REWARD * player_destroyed_boxes
         reward += destroy_enemy_reward + destroy_box_reward
@@ -873,6 +878,8 @@ class BombermanEnv(object):
         self.grid = GRID_BASE.copy()
         self.generate_map()
         self.grid_state = self.grid.copy()
+        self.player_boxes_destroyed = 0
+        self.player_kills = 0
         self._steps = 0
 
         self.explosions.clear()
