@@ -178,7 +178,7 @@ class Trainer(object):
         file_writer, episode_no: int,
         loss_value: float, kill_score: float, is_alive: int,
         game_duration: int, kills: int, boxes_destroyed: int,
-        score: int
+        score: float
     ):
         with file_writer.as_default():
             tf.summary.scalar(
