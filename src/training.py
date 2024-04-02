@@ -1,10 +1,10 @@
 from trainer import Trainer
 
 try:
-    from incentives import incentives
+    from config import incentives
 except ImportError as e:
-    print('No incentives module found. '
-          'Copy incentives.example.py to incentives.py')
+    print('No config module found. '
+          'Copy config.example.py to config.py')
     raise e
 
 if __name__ == '__main__':
