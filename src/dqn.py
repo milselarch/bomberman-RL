@@ -40,17 +40,35 @@ class DQN:
         self.update_target_model()
 
     def _build_model(self):
+        optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
+
         # the actual neural network structure
         model = tf.keras.models.Sequential()
         model.add(tf.keras.layers.Input(shape=self.state_shape))
-        model.add(tf.keras.layers.Conv2D(32, (3, 3), activation='relu', padding='same', kernel_initializer='he_uniform'))
-        model.add(tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same', kernel_initializer='he_uniform'))
+        """
+        model.add(tf.keras.layers.Conv2D(
+            32, (3, 3), activation='relu', padding='same',
+            kernel_initializer='he_uniform'
+        ))
+        model.add(tf.keras.layers.Conv2D(
+            64, (3, 3), activation='relu', padding='same', 
+            kernel_initializer='he_uniform'
+        ))
+        """
         model.add(tf.keras.layers.Flatten())
-        model.add(tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform'))
-        model.add(tf.keras.layers.Dense(128, activation='relu', kernel_initializer='he_uniform'))
-        model.add(tf.keras.layers.Dropout(0.1))
-        model.add(tf.keras.layers.Dense(self.action_size, activation='linear', name='action_values', kernel_initializer='he_uniform'))
-        model.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=self.learning_rate))
+        model.add(tf.keras.layers.Dense(
+            128, activation='relu', kernel_initializer='he_uniform'
+        ))
+        model.add(tf.keras.layers.Dropout(0.2))
+        model.add(tf.keras.layers.Dense(
+            32, activation='relu', kernel_initializer='he_uniform'
+        ))
+        model.add(tf.keras.layers.Dropout(0.2))
+        model.add(tf.keras.layers.Dense(
+            self.action_size, activation='linear',
+            name='action_values', kernel_initializer='he_uniform'
+        ))
+        model.compile(loss='mse', optimizer=optimizer)
         return model
 
     def update_target_model(self):
@@ -70,7 +88,7 @@ class DQN:
 
         return np.argmax(raw_prediction[0])
 
-    def replay(self, episode=0):
+    def replay(self, episode_no: int = 0):
         if self.memory.length() < self.batch_size:
             return None
 
@@ -109,9 +127,9 @@ class DQN:
             states, q_values, sample_weight=weights
         )
 
-        self.exploration_rate = self.exploration_max*self.exploration_decay**episode
+        self.exploration_rate = self.exploration_max * self.exploration_decay ** episode_no
         self.exploration_rate = max(self.exploration_min, self.exploration_rate)
-        self.learning_rate = self.learning_rate_max*self.learning_rate_decay**episode
+        self.learning_rate = self.learning_rate_max * self.learning_rate_decay ** episode_no
         tf.keras.backend.set_value(self.model.optimizer.learning_rate, self.learning_rate)
 
         return loss

@@ -52,13 +52,35 @@ class BombermanEnv(object):
 
     def __init__(
         self, surface, path, player_alg, en1_alg, en2_alg,
-        en3_alg, scale, tick_fps: int = 15,
+        en3_alg, scale, physics_fps: int = 15, render_fps: int = 15,
         simulate_time: bool = False,
         incentives: Incentives = Incentives()
     ):
+        """
+        :param surface:
+        :param path:
+        :param player_alg:
+        :param en1_alg:
+        :param en2_alg:
+        :param en3_alg:
+        :param scale:
+        :param physics_fps: physics update rate
+        :param render_fps: game UI update rate
+        :param simulate_time:
+        whether to simulate the passage of time between physics updates
+        or actually wait between physics updates to match physics_fps
+        setting simulate_time should simulate the game faster
+        :param incentives:
+        """
         self.incentives = incentives
-        self.tick_fps = tick_fps
+        self.physics_fps = physics_fps
+        self.render_fps = render_fps
         self.simulate_time = simulate_time
+
+        # cumulative sum of rewards recieved throughout the game
+        self._score: float = 0.0
+        self.game_time_passed: int = 0  # time passed in milliseconds
+        self.last_update_stamp: float = -float('inf')
 
         self.surface = surface
         self.path = path
@@ -212,6 +234,9 @@ class BombermanEnv(object):
         power_up_fire_img = pygame.transform.scale(power_up_fire_img, (scale, scale))
 
         self.powerUpsImages = [power_up_bomb_img, power_up_fire_img]
+
+    def get_score(self) -> float:
+        return self._score
 
     def draw(self):
         ############################################
@@ -634,10 +659,11 @@ class BombermanEnv(object):
         self._steps += 1
         # print('TICK_FPS', self.tick_fps)
         if self.simulate_time:
-            dt = 1000 // self.tick_fps
+            dt = 1000 // self.physics_fps
         else:
-            dt = self.clock.tick(self.tick_fps)
+            dt = self.clock.tick(self.physics_fps)
 
+        self.game_time_passed += dt
         # print('DT', dt)
         self.playerPrevPosX = self.player.pos_x
         self.playerPrevPosY = self.player.pos_y
@@ -759,7 +785,14 @@ class BombermanEnv(object):
         ############################################
         """ FOR RENDERING THE GAME IN THE WINDOW """
         ############################################
-        self.draw()
+        timestamp = time.time()
+        time_since_last_render = timestamp - self.last_update_stamp
+        update_interval = 1.0 / self.render_fps
+
+        if time_since_last_render >= update_interval:
+            self.last_update_stamp = timestamp
+            pygame.event.get()
+            self.draw()
 
         hasDroppedBomb = False
         playerBomb = None
@@ -867,6 +900,7 @@ class BombermanEnv(object):
         # if self.player.life:
         #     time.sleep(2)
 
+        self._score += reward
         return self.getNormalisedState(), reward, self.isGameEnded(), self.playerMoving
 
     def getNormalisedState(self):
@@ -881,6 +915,10 @@ class BombermanEnv(object):
         self.player_boxes_destroyed = 0
         self.player_kills = 0
         self._steps = 0
+
+        self._score = 0
+        self.game_time_passed = 0
+        self.last_update_stamp = -float('inf')
 
         self.explosions.clear()
         self.bombs.clear()

@@ -23,11 +23,12 @@ class Trainer(object):
 
         self.learning_rate = 1e-4
         self.learning_rate_decay = 1  # 0.99
-        self.exploration_decay = 0.99  # 0.95
+        self.exploration_decay = 0.999  # 0.95
+        self.exploration_min = 0.001  # 0.01
         self.gamma = 0.995  # 0.975
         self.update_target_every = 10
         self.episode_buffer_size = 128
-        self.episodes = 10000
+        self.episodes = 100 * 1000
 
         self.logs_dir = 'logs'
         self.models_dir = 'models'
@@ -55,7 +56,8 @@ class Trainer(object):
             self.surface, self.show_path, self.player_alg,
             self.en1_alg, self.en2_alg, self.en3_alg,
             self.tile_size, incentives=incentives,
-            simulate_time=False, tick_fps=0
+            simulate_time=True, physics_fps=15,
+            render_fps=15
         )
 
         self.agent = DQN(
@@ -65,6 +67,7 @@ class Trainer(object):
             learning_rate_max=self.learning_rate,
             learning_rate_decay=self.learning_rate_decay,
             exploration_decay=self.exploration_decay,
+            exploration_min=self.exploration_min,
             gamma=self.gamma
         )
         # agent.load(model_path)
@@ -92,6 +95,7 @@ class Trainer(object):
         state = self.env.reset()
         state = np.expand_dims(state, axis=0)
         most_recent_losses = deque(maxlen=self.episode_buffer_size)
+        best_score = -float('inf')
 
         # fill up memory before training starts
         while self.agent.memory.length() < self.episode_buffer_size:
@@ -125,12 +129,17 @@ class Trainer(object):
                 state = next_state
                 step += 1
 
-                loss = self.agent.replay(episode=e)
                 most_recent_losses.append(loss)
                 ma_loss = np.array(most_recent_losses).mean()
 
                 if loss is not None:
-                    pbar.set_description(f"Step: {step}. -- Loss: {loss:.6f}")
+                    pbar.set_description(
+                        f"[{self.date_stamp}] "
+                        f"Step: {step}. -- Loss: {loss:.6f}"
+                    )
+
+            loss = self.agent.replay(episode_no=e)
+            game_score = self.env.get_score()
 
             episode_kills = self.env.count_player_kills()
             kill_score = episode_kills
@@ -142,30 +151,34 @@ class Trainer(object):
             self.write_logs(
                 file_writer=self.t_logs_writer, episode_no=e,
                 loss_value=loss, kill_score=kill_score, is_alive=is_alive,
-                alive_duration=self.env.steps, kills=self.env.player_kills,
-                boxes_destroyed=self.env.player_boxes_destroyed
+                game_duration=self.env.steps, kills=self.env.player_kills,
+                boxes_destroyed=self.env.player_boxes_destroyed,
+                score=game_score
             )
 
             print(
                 f"Episode {e}/{self.episodes - 1} completed "
                 f"with {step} steps. "
-                f"LR: {self.agent.learning_rate:.6f}. "
+                f"LR: {self.agent.learning_rate:.3f}. "
                 f"EP: {self.agent.exploration_rate:.2f}. "
                 f"Kills: {episode_kills} [{live_tag}] "
                 f"boxes: {self.env.player_boxes_destroyed} "
-                f"loss: {loss:.6f}"
+                f"score: {game_score:.3f} "
             )
 
-            loss_tag = f'{loss:.6f}'.replace('.', '_')
-            save_path = f'{self.model_dir}/{e}-L{loss_tag}.h5'
-            print('model saved to:', save_path)
-            self.agent.save(save_path)
+            if game_score > best_score:
+                best_score = game_score
+                loss_tag = f'{best_score:.4f}'.replace('.', '_')
+                save_path = f'{self.model_dir}/{e}-L{loss_tag}.h5'
+                print('new best model saved to:', save_path)
+                self.agent.save(save_path)
 
     @staticmethod
     def write_logs(
         file_writer, episode_no: int,
         loss_value: float, kill_score: float, is_alive: int,
-        alive_duration: int, kills: int, boxes_destroyed: int
+        game_duration: int, kills: int, boxes_destroyed: int,
+        score: float
     ):
         with file_writer.as_default():
             tf.summary.scalar(
@@ -178,11 +191,14 @@ class Trainer(object):
                 'is_alive', data=is_alive, step=episode_no
             )
             tf.summary.scalar(
-                'steps', data=alive_duration, step=episode_no
+                'game_duration', data=game_duration, step=episode_no
             )
             tf.summary.scalar(
                 'kills', data=kills, step=episode_no
             )
             tf.summary.scalar(
                 'boxes_destroyed', data=boxes_destroyed, step=episode_no
+            )
+            tf.summary.scalar(
+                'score', data=score, step=episode_no
             )
