@@ -130,7 +130,9 @@ class DQN:
             reset_metrics=True
         )
 
-        self.exploration_rate = self.exploration_max * self.exploration_decay ** episode_no
+        self.exploration_rate = (
+            self.exploration_max * self.exploration_decay ** episode_no
+        )
         self.exploration_rate = max(self.exploration_min, self.exploration_rate)
         self.learning_rate = self.learning_rate_max * self.learning_rate_decay ** episode_no
         tf.keras.backend.set_value(self.model.optimizer.learning_rate, self.learning_rate)
