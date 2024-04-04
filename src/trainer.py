@@ -34,7 +34,7 @@ class Trainer(object):
         self.gamma = 0.995  # 0.975
         self.update_target_every = 10
         self.episode_buffer_size = 128
-        self.episodes = 100 * 1000
+        self.episodes = 20 * 1000
 
         self.logs_dir = 'logs'
         self.models_dir = 'models'
