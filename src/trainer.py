@@ -13,11 +13,16 @@ from collections import deque
 from datetime import datetime as Datetime
 from enums.algorithm import Algorithm
 from BombermanEnv import BombermanEnv
+from memory_profiler import profile as profile_memory
 from dqn import DQN
+
+fp = open('memory_profiler.log', 'w')
 
 
 class Trainer(object):
-    def __init__(self, name='ddqn', incentives: Incentives = Incentives()):
+    def __init__(
+        self, name='ddqn', incentives: Incentives = Incentives()
+    ):
         self.name = name
         self.incentives = incentives
 
@@ -91,6 +96,7 @@ class Trainer(object):
         self.t_logs_writer = tf.summary.create_file_writer(train_path)
         self.v_logs_writer = tf.summary.create_file_writer(valid_path)
 
+    @profile_memory(stream=fp)
     def train(self):
         state = self.env.reset()
         state = np.expand_dims(state, axis=0)

@@ -2,7 +2,10 @@ import numpy as np
 
 
 class PrioritizedReplayBuffer:
-    def __init__(self, capacity, epsilon=1e-6, alpha=0.8, beta=0.4, beta_increment=0.001):
+    def __init__(
+        self, capacity, epsilon=1e-6, alpha=0.8, beta=0.4,
+        beta_increment=0.001
+    ):
         self.capacity = capacity
         self.epsilon = epsilon
         self.alpha = alpha   # how much prioritisation is used
@@ -21,6 +24,7 @@ class PrioritizedReplayBuffer:
             self.data.append(experience)
         else:
             self.data[self.position] = experience
+
         self.priority_buffer[self.position] = max_priority
         self.position = (self.position + 1) % self.capacity
 
