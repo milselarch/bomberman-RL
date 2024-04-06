@@ -13,22 +13,28 @@ from collections import deque
 from datetime import datetime as Datetime
 from enums.algorithm import Algorithm
 from BombermanEnv import BombermanEnv
+from memory_profiler import profile as profile_memory
 from dqn import DQN
+
+fp = open('memory_profiler.log', 'w')
 
 
 class Trainer(object):
-    def __init__(self, name='ddqn', incentives: Incentives = Incentives()):
+    def __init__(
+        self, name='ddqn', incentives: Incentives = Incentives()
+    ):
         self.name = name
         self.incentives = incentives
 
         self.learning_rate = 1e-4
         self.learning_rate_decay = 1  # 0.99
         self.exploration_decay = 0.999  # 0.95
+        self.exploration_max = 0.2
         self.exploration_min = 0.001  # 0.01
         self.gamma = 0.995  # 0.975
         self.update_target_every = 10
         self.episode_buffer_size = 128
-        self.episodes = 100 * 1000
+        self.episodes = 20 * 1000
 
         self.logs_dir = 'logs'
         self.models_dir = 'models'
@@ -68,6 +74,7 @@ class Trainer(object):
             learning_rate_decay=self.learning_rate_decay,
             exploration_decay=self.exploration_decay,
             exploration_min=self.exploration_min,
+            exploration_max=self.exploration_max,
             gamma=self.gamma
         )
         # agent.load(model_path)
@@ -91,6 +98,7 @@ class Trainer(object):
         self.t_logs_writer = tf.summary.create_file_writer(train_path)
         self.v_logs_writer = tf.summary.create_file_writer(valid_path)
 
+    @profile_memory(stream=fp)
     def train(self):
         state = self.env.reset()
         state = np.expand_dims(state, axis=0)

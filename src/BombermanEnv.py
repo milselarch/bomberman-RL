@@ -53,8 +53,7 @@ class BombermanEnv(object):
     def __init__(
         self, surface, path, player_alg, en1_alg, en2_alg,
         en3_alg, scale, physics_fps: int = 15, render_fps: int = 15,
-        simulate_time: bool = False,
-        incentives: Incentives = Incentives()
+        simulate_time: bool = False, incentives: Incentives = Incentives()
     ):
         """
         :param surface:
