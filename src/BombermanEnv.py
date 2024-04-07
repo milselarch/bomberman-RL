@@ -235,6 +235,9 @@ class BombermanEnv(object):
 
         self.powerUpsImages = [power_up_bomb_img, power_up_fire_img]
 
+        self.FLAG_checkIfPlayerTrappedThemselves = False
+        self.lifeDurationCounter = 0
+
     def get_score(self) -> float:
         return self._score
 
@@ -427,6 +430,103 @@ class BombermanEnv(object):
                 self.clearExplosionFromGrid(explosion)
 
         return player_kills, player_destroyed_boxes
+
+    def stepInDirection(self, start, direction):
+        """
+        Simple utility function. Get coordinates of square in the direction of the start square.
+        e.g. searchDirection([x, y], "left") --> [x-1, y]
+
+        WARNING!!! If exceeding map dimensions, just returns the starting coordinates unchanged.
+        """
+        res = start
+        max_x_dim = self.grid_state.shape[0]
+        max_y_dim = self.grid_state.shape[1]
+        match direction:
+            case "left":
+                res = [max(0, start[0]-1), start[1]]
+            case "right":
+                res = [min(max_x_dim, start[0]+1), start[1]]
+            case "up":
+                res = [start[0], min(max_y_dim, start[1]+1)]
+            case "down":
+                res = [start[0], max(0, start[1]-1)]
+        # print(start, direction, res)
+        return res
+
+    def squareIsWalkable(self, coord):
+        # print(self.grid_state[coord[0], coord[1]])
+        match self.grid_state[coord[0], coord[1]]:
+            case GridValues.EMPTY_GRID_VAL | GridValues.PLAYER_GRID_VAL | 8:
+                return True
+            case _:
+                return False
+
+
+    def getConnectedWalkableSquares(self, startCoordinate):
+        """
+        Get all the walkable squares that are connected to an entity at startCoordinate.
+        Uses flood fill algorithm; easy to overflow recursion but should be ok for our small map size
+        """
+        def floodFill(s, coord):
+            # no need to check if map dimensions exceeded, since stepInDirection
+            # will just return the same coord, which should already be in s
+            tupCoord = (coord[0], coord[1]) # for hashability to add to set
+            
+            walkable = False
+            notyet = False
+            if self.squareIsWalkable(coord):
+                walkable = True
+            # else:
+            #     print("NOT WALKABLE:", coord)
+    
+            if tupCoord not in s:
+                notyet = True
+            # else:
+            #     print("ALREADY:", tupCoord)
+
+            if walkable and notyet:
+                s.add(tupCoord)
+                for direction in ["left", "right", "up", "down"]:
+                    floodFill(s, self.stepInDirection(coord, direction))
+
+        connectedWalkableSquares = set()
+        floodFill(connectedWalkableSquares, startCoordinate)
+        return connectedWalkableSquares
+
+
+    def getLeftoverWalkableSquares(self):
+        """
+        Check if player has enough empty space to get away from the bombs that they set themselves.
+
+        WARNING!!! Only checks for bombs that the player sets for themselves.
+
+        This is meant to help see if the player has put a bomb in such a way that there is no way for themselves to escape.
+        """
+        playersBombs = [bomb for bomb in self.bombs if bomb.bomber.is_player()]
+        bombSectors = [
+            (sectors[0], sectors[1])
+            for bomb in playersBombs
+            for sectors in bomb.sectors
+        ]
+        walkableSquares = self.getConnectedWalkableSquares(self.player.getGridCoords())
+        leftoverWalkableSquares = set(walkableSquares).difference(set(bombSectors))
+        # if len(walkableSquares) > 0:
+        #     print(walkableSquares)
+        # else:
+        #     print("?")
+        # if len(leftoverWalkableSquares) == 0:
+        #     print("PLAYER AT:", self.player.getGridCoords())
+        #     print("WALKABLE:", set(walkableSquares))
+        #     print("BOMBSECTORS:", set(bombSectors))
+        #     print("LEFTOVER:", leftoverWalkableSquares)
+        return leftoverWalkableSquares
+    
+    def checkIfPlayerTrappedThemselves(self):
+        playersBombs = [bomb for bomb in self.bombs if bomb.bomber.is_player()]
+        if len(playersBombs) == 0:
+            return False
+
+        return len(self.getLeftoverWalkableSquares()) == 0        
 
     def checkIfInBombRange(self):
         playerPosX = self.player.pos_x
@@ -836,6 +936,13 @@ class BombermanEnv(object):
         # NOT_MOVING_TO_DEST_GRID_PENALTY = -1000
         # MOVING_TO_DEST_GRID_PENALTY = 1000
 
+        if not self.FLAG_checkIfPlayerTrappedThemselves:
+            if self.checkIfPlayerTrappedThemselves():
+                self.FLAG_checkIfPlayerTrappedThemselves = True
+                print("DUNNIT")
+
+        self.lifeDurationCounter += 1
+
         if not self.playerMoving:
             # Only give reward if player is not moving between grid squares.
 
@@ -872,6 +979,9 @@ class BombermanEnv(object):
         if not self.player.life:
             reward += I.DEATH_PENALTY
             # print('DIE', I.DEATH_PENALTY)
+            if self.FLAG_checkIfPlayerTrappedThemselves:
+                reward += I.TRAPPED_THEMSELVES_GUARANTEED_DEATH
+            reward += I.STAY_ALIVE * self.lifeDurationCounter
             self.clearPlayerFromGrid()
 
         ######################################
@@ -986,6 +1096,9 @@ class BombermanEnv(object):
 
         self.setPlayerInGrid()
         self.setEnemiesInGrid()
+
+        self.FLAG_checkIfPlayerTrappedThemselves = False
+        self.lifeDurationCounter = 0
 
         return self.getNormalisedState()
 

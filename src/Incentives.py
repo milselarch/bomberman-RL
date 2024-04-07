@@ -18,3 +18,6 @@ class Incentives(object):
 
     DESTROY_BOX_REWARD: float = 0
     DESTROY_ENEMY_REWARD: float = 0
+
+    TRAPPED_THEMSELVES_GUARANTEED_DEATH: float = 0
+    STAY_ALIVE: float = 0

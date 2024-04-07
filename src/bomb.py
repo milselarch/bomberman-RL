@@ -25,6 +25,7 @@ class Bomb:
     def get_range(self, map):
 
         self.sectors.append([self.pos_x, self.pos_y])
+        # print(self.pos_x, self.pos_y)
 
         for x in range(1, self.range):
             if map[self.pos_x + x][self.pos_y] == 1:
