@@ -67,7 +67,7 @@ class Trainer(object):
         )
 
         self.agent = DQN(
-            state_shape=self.env.stateShape,
+            state_shape=self.env.state_shape,
             action_size=self.env.actionSpaceSize,
             batch_size=self.episode_buffer_size,
             learning_rate_max=self.learning_rate,

@@ -96,9 +96,9 @@ class BombermanEnv(object):
 
         self.MAX_VAL_IN_GRID = self.EXPLOSION_GRID_VAL
 
-        self.m = len(self.grid)  # Height of whole map, ie. no. of rows
-        self.n = len(self.grid[0])  # Width of whole map, ie. no. of columns/fields in each row
-        self.stateShape = (self.m, self.n, 1)
+        self.grid_height = len(self.grid)  # Height of whole map, ie. no. of rows
+        self.grid_width = len(self.grid[0])  # Width of whole map, ie. no. of columns/fields in each row
+        self.state_shape = (self.grid_height, self.grid_width, 1)
         self.UP = 'U'
         self.DOWN = 'D'
         self.LEFT = 'L'
@@ -323,6 +323,8 @@ class BombermanEnv(object):
 
         if self.grid_state[enemyGridPosX][enemyGridPosY] >= self.ENEMY_GRID_VAL:
             self.grid_state[enemyGridPosX][enemyGridPosY] -= self.ENEMY_GRID_VAL
+            if self.grid_state[enemyGridPosX][enemyGridPosY] < 0:
+                self.grid_state[enemyGridPosX][enemyGridPosY] = 0
 
     def setPlayerInGrid(self):
         self.grid_state[self.playerPrevGridPosX][self.playerPrevGridPosY] -= self.PLAYER_GRID_VAL
@@ -336,6 +338,8 @@ class BombermanEnv(object):
     def clearPlayerFromGrid(self):
         if self.grid_state[self.playerPrevGridPosX][self.playerPrevGridPosY] >= self.PLAYER_GRID_VAL:
             self.grid_state[self.playerPrevGridPosX][self.playerPrevGridPosX] -= self.PLAYER_GRID_VAL
+            if self.grid_state[self.playerPrevGridPosX][self.playerPrevGridPosX] < 0:
+                self.grid_state[self.playerPrevGridPosX][self.playerPrevGridPosX] = 0
 
     def set_explosions_in_grid(self) -> int:
         player_destroyed_boxes = 0
@@ -344,17 +348,33 @@ class BombermanEnv(object):
             explosion = self.explosions[i]
 
             for grid_coord in explosion.sectors:
-                y, x = grid_coord
+                x, y = grid_coord
 
                 is_player_destroyed_box = (
                     explosion.bomber.is_player() and
-                    (self.grid_state[y][x] == self.BOX_GRID_VAL)
+                    (self.grid_state[x][y] == self.BOX_GRID_VAL)
                 )
 
                 if is_player_destroyed_box:
                     player_destroyed_boxes += 1
 
-                self.grid_state[y][x] = self.EXPLOSION_GRID_VAL
+                if self.grid_state[x][y] == self.BOX_GRID_VAL:
+                    self.grid_state[x][y] = self.EXPLOSION_GRID_VAL + self.BOX_GRID_VAL
+                else:
+                    self.grid_state[x][y] = self.EXPLOSION_GRID_VAL
+
+                # Set grid value to be combination of explosion grid value and enemy grid value
+                for i in range(len(self.enemyList)):
+                    self.enemiesPrevGridPosX[i] = (int(self.enemyList[i].pos_x / Enemy.TILE_SIZE))
+                    self.enemiesPrevGridPosY[i] = (int(self.enemyList[i].pos_y / Enemy.TILE_SIZE))
+                    if(x == self.enemiesPrevGridPosX[i] and y == self.enemiesPrevGridPosY[i]):
+                        self.grid_state[self.enemiesPrevGridPosX[i]][self.enemiesPrevGridPosY[i]] = self.EXPLOSION_GRID_VAL + self.ENEMY_GRID_VAL
+
+                # Set grid value to be combination of explosion grid value and player grid value
+                self.playerPrevGridPosX = int(self.player.pos_x / Player.TILE_SIZE)
+                self.playerPrevGridPosY = int(self.player.pos_y / Player.TILE_SIZE)
+                if(x == self.playerPrevGridPosX and y == self.playerPrevGridPosY):
+                        self.grid_state[self.playerPrevGridPosX][self.playerPrevGridPosY] = self.EXPLOSION_GRID_VAL + self.PLAYER_GRID_VAL
 
         return player_destroyed_boxes
 
@@ -499,7 +519,42 @@ class BombermanEnv(object):
                         # If top, bottom, left or right grid of player's grid is in any explosion range, return True. 
                         return True
         return False
+    
+    def checkEscapeRouteRecursive(self, x, y, distFromBomb, isSameX, isSameY, isIncreaseX, isIncreaseY) -> bool:
+        gridVal = self.grid[x][y] # Use grid and not grid_state here as grid has only bombs, walls and boxes values.
+        if gridVal >= 1 and gridVal <= 3:
+            # Wall is 1, Box is 2, Bomb is 3
+            return False
+        elif distFromBomb > self.player.range:
+            # Check if this grid is out of bomb range and is not wall, box or bomb. If so, there might be a possible an escape route
+            return True
+        else:
+            return self.grid[x + 1][y] == 0 or self.grid[x - 1][y] == 0 or \
+                    self.grid[x][y + 1] == 0 or self.grid[x][y - 1] == 0 or \
+                    self.checkEscapeRouteRecursive(x + (0 if isSameX else 1 if isIncreaseX else -1),
+                                                y + (0 if isSameY else 1 if isIncreaseY else -1),
+                                                distFromBomb = distFromBomb + 1,
+                                                isSameX = isSameX,
+                                                isSameY = isSameY,
+                                                isIncreaseX = isIncreaseX,
+                                                isIncreaseY = isIncreaseY)
 
+    def checkIfPutBombHaveEscape(self):
+        playerGridPosX = int(self.player.pos_x / Player.TILE_SIZE)
+        playerGridPosY = int(self.player.pos_y / Player.TILE_SIZE)
+        return (self.checkEscapeRouteRecursive(playerGridPosX + 1, playerGridPosY, 0,
+                                                isSameX = False, isSameY = True, 
+                                                isIncreaseX = True, isIncreaseY = False) or
+                self.checkEscapeRouteRecursive(playerGridPosX - 1, playerGridPosY, 0,
+                                                isSameX = False, isSameY = True, 
+                                                isIncreaseX = False, isIncreaseY = False) or
+                self.checkEscapeRouteRecursive(playerGridPosX, playerGridPosY + 1, 0,
+                                                isSameX = True, isSameY = False, 
+                                                isIncreaseX = False, isIncreaseY = True) or
+                self.checkEscapeRouteRecursive(playerGridPosX, playerGridPosY - 1, 0,
+                                                isSameX = True, isSameY = False, 
+                                                isIncreaseX = False, isIncreaseY = False))
+        
     def checkIfOwnBombToHitBoxes(self, playerBomb):
         # Only give reward when player just planted bomb
         playerGridPosX = int(self.player.pos_x / Player.TILE_SIZE)
@@ -669,7 +724,7 @@ class BombermanEnv(object):
 
         for enemy in self.enemyList:
             enemy.make_move(
-                self.grid, self.bombs, self.explosions, self.enemyBlocks
+                self.grid, self.grid_state, self.bombs, self.explosions, self.enemyBlocks
             )
 
         if self.player.life:
@@ -837,7 +892,12 @@ class BombermanEnv(object):
 
         if not self.playerMoving:
             # Only give reward if player is not moving between grid squares.
-
+            if action == self.BOMB and hasDroppedBomb:
+                if self.checkIfPutBombHaveEscape():
+                    reward += I.PUT_BOMB_HAVE_ESCAPE_ROUTE_REWARD
+                else:
+                    reward += I.PUT_BOMB_NO_ESCAPE_ROUTE_PENALTY
+            
             if self.checkIfInBombRange():
                 reward += I.IN_BOMB_RANGE_PENALTY
             else:
@@ -903,6 +963,14 @@ class BombermanEnv(object):
         return self.getNormalisedState(), reward, self.isGameEnded(), self.playerMoving
 
     def getNormalisedState(self):
+        # #########################################################
+        # # Check if grid state did have explosion values. 
+        # for row in self.grid_state:
+        #     for grididx in range(len(row)):
+        #         if row[grididx] == 9:
+        #             print(self.grid_state)
+        #             time.sleep(1)
+        # #########################################################
         return self.grid_state  # / self.MAX_VAL_IN_GRID
 
     def reset(self):
