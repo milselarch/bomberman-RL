@@ -450,27 +450,71 @@ class BombermanEnv(object):
 
         return player_kills, player_destroyed_boxes
 
-    def stepInDirection(self, start, direction):
+    def stepInDirection(self, startGridCoords, direction):
         """
         Simple utility function. Get coordinates of square in the direction of the start square.
         e.g. searchDirection([x, y], "left") --> [x-1, y]
 
         WARNING!!! If exceeding map dimensions, just returns the starting coordinates unchanged.
         """
-        res = start
+        res = startGridCoords
         max_x_dim = self.grid_state.shape[0]
         max_y_dim = self.grid_state.shape[1]
         match direction:
             case "left":
-                res = [max(0, start[0]-1), start[1]]
+                res = [max(0, startGridCoords[0]-1), startGridCoords[1]]
             case "right":
-                res = [min(max_x_dim, start[0]+1), start[1]]
+                res = [min(max_x_dim, startGridCoords[0]+1), startGridCoords[1]]
             case "up":
-                res = [start[0], min(max_y_dim, start[1]+1)]
+                res = [startGridCoords[0], min(max_y_dim, startGridCoords[1]+1)]
             case "down":
-                res = [start[0], max(0, start[1]-1)]
+                res = [startGridCoords[0], max(0, startGridCoords[1]-1)]
         # print(start, direction, res)
         return res
+
+    def manhattanDistance(startGridCoords, endGridCoords):
+        xDist = abs(endGridCoords[0] - startGridCoords[0])
+        yDist = abs(endGridCoords[1] - startGridCoords[1])
+        return xDist + yDist
+    
+    def judgePotentialBombSectors(self):
+        playerPos = self.player.getGridCoords()
+        playerRange = 3 # TODO: refactor so this magic number is represented properly
+
+        sectors = [playerPos]
+        for direction in ["left", "right", "up", "down"]:
+            pos = playerPos.copy()
+            for _ in range(playerRange):
+                pos = self.stepInDirection(pos, direction)
+                match self.grid_state[pos[0], pos[1]]:
+                    case GridValues.EMPTY_GRID_VAL | GridValues.BOX_GRID_VAL | GridValues.BOMB_GRID_VAL:
+                        sectors.append(pos.copy())
+                    case _:
+                        break
+        return sectors
+    
+    
+    def checkHowManyBoxesWillBeDestroyedIfPlaceBombNow(self):
+        potentialSectors = self.judgePotentialBombSectors()
+        count = 0
+        for sector in potentialSectors:
+            if self.grid_state[sector[0], sector[1]] == GridValues.BOX_GRID_VAL:
+                count += 1
+        return count
+
+    def getGridCoordsContainingValue(self, targetValues):
+        return [
+            coord
+            for row in self.grid_state
+            for coord in row
+            if coord in targetValues
+        ]
+
+
+    # def getGridCoordIncentiveDict(self):
+    #     boxGridCoords = self.getGridCoordsContainingValue({GridValues.BOX_GRID_VAL})
+
+
 
     def squareIsWalkable(self, coord):
         # print(self.grid_state[coord[0], coord[1]])
@@ -481,7 +525,7 @@ class BombermanEnv(object):
                 return False
 
 
-    def getConnectedWalkableSquares(self, startCoordinate):
+    def getConnectedWalkableSquares(self, startGridCoordinate):
         """
         Get all the walkable squares that are connected to an entity at startCoordinate.
         Uses flood fill algorithm; easy to overflow recursion but should be ok for our small map size
@@ -509,7 +553,7 @@ class BombermanEnv(object):
                     floodFill(s, self.stepInDirection(coord, direction))
 
         connectedWalkableSquares = set()
-        floodFill(connectedWalkableSquares, startCoordinate)
+        floodFill(connectedWalkableSquares, startGridCoordinate)
         return connectedWalkableSquares
 
 
