@@ -21,7 +21,7 @@ model_path = "models/196.h5"
 
 env = BombermanEnv(surface, show_path, player_alg, en1_alg, en2_alg, en3_alg, TILE_SIZE)
 agent = DQN(
-    state_shape=env.stateShape,
+    state_shape=env.state_shape,
     action_size=env.actionSpaceSize
 )
 agent.load(model_path)

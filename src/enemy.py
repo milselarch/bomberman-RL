@@ -59,13 +59,13 @@ class Enemy(Actor):
         else:
             self.frame += 1
 
-    def make_move(self, map, bombs, explosions, enemy):
+    def make_move(self, map, map_state, bombs, explosions, enemy):
 
         if not self.life:
             return
         if len(self.movement_path) == 0:
             if self.plant:
-                bombs.append(self.plant_bomb(map))
+                bombs.append(self.plant_bomb(map, map_state))
                 self.plant = False
                 map[int(self.pos_x / Enemy.TILE_SIZE)][int(self.pos_y / Enemy.TILE_SIZE)] = 3
             if self.algorithm is Algorithm.DFS:
@@ -77,9 +77,17 @@ class Enemy(Actor):
             self.direction = self.movement_path[0]
             self.move(map, bombs, explosions, enemy)
 
-    def plant_bomb(self, map):
-        b = Bomb(self.range, round(self.pos_x / Enemy.TILE_SIZE), round(self.pos_y / Enemy.TILE_SIZE), map, self)
+    def plant_bomb(self, map, map_state):
+        # b = Bomb(self.range, round(self.pos_x / Enemy.TILE_SIZE), round(self.pos_y / Enemy.TILE_SIZE), map, self)
+        
+        bGridX = round(self.pos_x / Enemy.TILE_SIZE)
+        bGridY = round(self.pos_y / Enemy.TILE_SIZE)
+        b = Bomb(self.range, bGridX, bGridY, map, self)
+        
         self.bomb_limit -= 1
+
+        map_state[bGridX][bGridY] += 3
+
         return b
 
     def check_death(

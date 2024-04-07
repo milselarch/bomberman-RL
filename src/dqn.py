@@ -84,7 +84,9 @@ class DQN:
             return random.randrange(self.action_size)
 
         with tf.device(self.device):
-            raw_prediction = self.target_model.predict(state, verbose=0)
+            raw_prediction = np.array(
+                self.target_model.predict_on_batch(state)
+            )
 
         return np.argmax(raw_prediction[0])
 
@@ -124,10 +126,13 @@ class DQN:
         # For learning: Adjust Q values of taken actions to match the computed targets
         q_values[batch_indices, actions] = targets
         loss = self.model.train_on_batch(
-            states, q_values, sample_weight=weights
+            states, q_values, sample_weight=weights,
+            reset_metrics=True
         )
 
-        self.exploration_rate = self.exploration_max * self.exploration_decay ** episode_no
+        self.exploration_rate = (
+            self.exploration_max * self.exploration_decay ** episode_no
+        )
         self.exploration_rate = max(self.exploration_min, self.exploration_rate)
         self.learning_rate = self.learning_rate_max * self.learning_rate_decay ** episode_no
         tf.keras.backend.set_value(self.model.optimizer.learning_rate, self.learning_rate)
