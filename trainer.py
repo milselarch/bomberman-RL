@@ -37,11 +37,11 @@ class Trainer(object):
         self.episodes = 20 * 1000
 
         self.logs_dir = 'logs'
-        self.models_dir = 'models'
+        self.models_save_dir = 'saves'
         self.date_stamp = self.make_date_stamp()
 
         self.log_dir = None
-        self.model_dir = None
+        self.model_save_dir = None
         self.t_logs_writer = None
         self.v_logs_writer = None
         self.init_tensorboard()
@@ -90,8 +90,8 @@ class Trainer(object):
 
     def init_tensorboard(self):
         dir_save_name = f'{self.name}-{self.date_stamp}'
-        self.log_dir = f'logs/{dir_save_name}'
-        self.model_dir = f'models/{dir_save_name}'
+        self.log_dir = f'{self.logs_dir}/{dir_save_name}'
+        self.model_save_dir = f'{self.models_save_dir}/{dir_save_name}'
 
         train_path = self.log_dir + '/training'
         valid_path = self.log_dir + '/validation'
@@ -177,7 +177,7 @@ class Trainer(object):
             if game_score > best_score:
                 best_score = game_score
                 loss_tag = f'{best_score:.4f}'.replace('.', '_')
-                save_path = f'{self.model_dir}/{e}-L{loss_tag}.h5'
+                save_path = f'{self.model_save_dir}/{e}-L{loss_tag}.h5'
                 print('new best model saved to:', save_path)
                 self.agent.save(save_path)
 
