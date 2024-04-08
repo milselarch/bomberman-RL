@@ -6,9 +6,9 @@ class GridValues(IntEnum):
     WALL_GRID_VAL = 1
     BOX_GRID_VAL = 2
     BOMB_GRID_VAL = 3
-    EXPLOSION_GRID_VAL = 9
     ENEMY_GRID_VAL = 4
     PLAYER_GRID_VAL = 5
+    EXPLOSION_GRID_VAL = 9
     # 1 is for indestructible walls
     # 2 is for destructible walls
     # 3 is for bombs

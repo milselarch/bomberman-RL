@@ -83,7 +83,7 @@ class BombermanEnv(object):
         self.m = len(self.grid)
         #  Width of whole map, i.e. no. of columns/fields in each row
         self.n = len(self.grid[0])
-        self.state_shape = (self.m, self.n, 1)
+        self.state_shape = (8, self.m, self.n, 1)
         self.UP = 'U'
         self.DOWN = 'D'
         self.LEFT = 'L'
@@ -318,7 +318,7 @@ class BombermanEnv(object):
         for i in range(len(self.enemy_list)):
             x = self.enemies_prev_grid_pos_x[i]
             y = self.enemies_prev_grid_pos_y[i]
-            self.grid_state[x][y] -= GridValues.ENEMY_GRID_VAL
+            self.grid_state[x][y] = GridValues.EMPTY_GRID_VAL
             if self.grid_state[x][y] < 0:
                 self.grid_state[x][y] = 0
 
@@ -330,34 +330,30 @@ class BombermanEnv(object):
             )
 
             assert self.grid_state[x][y] == GridValues.EMPTY_GRID_VAL
-            self.grid_state[x][y] += GridValues.ENEMY_GRID_VAL
+            self.grid_state[x][y] = GridValues.ENEMY_GRID_VAL
 
     def clear_enemy_from_grid(self, enemy):
         x = (int(enemy.pos_x / Enemy.TILE_SIZE))
         y = (int(enemy.pos_y / Enemy.TILE_SIZE))
-
-        if self.grid_state[x][y] >= GridValues.ENEMY_GRID_VAL:
-            self.grid_state[x][y] -= GridValues.ENEMY_GRID_VAL
+        self.grid_state[x][y] = GridValues.EMPTY_GRID_VAL
 
     def set_player_in_grid(self):
         x = self.player_prev_grid_pos_x
         y = self.player_prev_grid_pos_y
-
-        self.grid_state[x][y] -= GridValues.PLAYER_GRID_VAL
-        if self.grid_state[x][y] < 0:
-            self.grid_state[x][y] = 0
+        self.grid_state[x][y] = GridValues.EMPTY_GRID_VAL
 
         tile_size = Player.TILE_SIZE
         self.player_prev_grid_pos_x = int(self.player.pos_x / tile_size)
         self.player_prev_grid_pos_y = int(self.player.pos_y / tile_size)
-        self.grid_state[x][y] += GridValues.PLAYER_GRID_VAL
+
+        x = self.player_prev_grid_pos_x
+        y = self.player_prev_grid_pos_y
+        self.grid_state[x][y] = GridValues.PLAYER_GRID_VAL
 
     def clearPlayerFromGrid(self):
         x = self.player_prev_grid_pos_x
         y = self.player_prev_grid_pos_y
-
-        if self.grid_state[x][y] >= GridValues.PLAYER_GRID_VAL:
-            self.grid_state[x][y] -= GridValues.PLAYER_GRID_VAL
+        self.grid_state[x][y] = GridValues.EMPTY_GRID_VAL
 
     def set_explosions_in_grid(self) -> int:
         player_destroyed_boxes = 0
@@ -411,9 +407,6 @@ class BombermanEnv(object):
             if bomb.time < 1:
                 bomb.bomber.bomb_limit += 1
                 self.grid[x][y] = 0
-                self.grid_state[x][y] -= GridValues.BOMB_GRID_VAL
-                if self.grid_state[x][y] < 0:
-                    self.grid_state[x][y] = 0
 
                 explosion = Explosion(x, y, bomb.range)
                 self.explosions.append(explosion)
@@ -653,9 +646,7 @@ class BombermanEnv(object):
             dt = self.clock.tick(self.physics_fps)
 
         self.game_time_passed += dt
-        # print('DT', dt)
-        self.player_prev_grid_pos_x = self.player.pos_x
-        self.player_prev_grid_pos_y = self.player.pos_y
+        tile_size = Player.TILE_SIZE
 
         for enemy in self.enemy_list:
             enemy.make_move(
@@ -663,24 +654,15 @@ class BombermanEnv(object):
             )
 
         if self.player.life:
-            action = self.player_moving_action
-            tile_size = Player.TILE_SIZE
-            player_next_x = self.player_next_grid_pos_x
-            player_next_y = self.player_next_grid_pos_y
-            at_destination = (
-                int(self.player.pos_x / tile_size) == player_next_x and
-                int(self.player.pos_y / tile_size) == player_next_y and
-                self.player.pos_x % tile_size == 0 and
-                self.player.pos_y % tile_size == 0
-            )
+            assign_action = True
 
             if not self.player_moving:
+                assign_action = False
                 # When player was originally not moving, or has
                 # reached its destination grid square,
                 # and an action to move is given as input, then
                 # set up values such that player would move
-                # in the same direction
-                # until they reach the destination grid.
+                # in the same direction until they reach the destination grid.
                 # THIS IS TO STOP THE PLAYER FROM STOPPING IN BETWEEN SQUARES.
                 self.current_player_direction = self.player.direction
                 self.player_moving = True
@@ -711,6 +693,7 @@ class BombermanEnv(object):
                     self.player_moving = False
                     self.player_moving_action = ''
 
+                # print('ACT', self.player_moving_action, [action])
                 if self.player_moving:
                     # Storing Destination Grid Coordinates in Grid
                     self.player_next_grid_pos_x = int(
@@ -735,17 +718,31 @@ class BombermanEnv(object):
                         self.player_moving = False
                         self.player_moving_action = ''
 
-            elif at_destination:
+            player_next_x = self.player_next_grid_pos_x
+            player_next_y = self.player_next_grid_pos_y
+            at_destination = (
+                self.player_moving and
+                int(self.player.pos_x / tile_size) == player_next_x and
+                int(self.player.pos_y / tile_size) == player_next_y and
+                self.player.pos_x % tile_size == 0 and
+                self.player.pos_y % tile_size == 0
+            )
+
+            if at_destination:
                 # If current grid coordinates of player
                 # is same as destination grid coordinates,
                 # and position of player are multiples of Player.TILE_SIZE,
                 # THEN reset values
+                assign_action = False
                 self.player_direction_x = 0
                 self.player_direction_y = 0
                 self.player_next_grid_pos_x = None
                 self.player_next_grid_pos_y = None
                 self.player_moving = False
                 self.player_moving_action = ''
+
+            if assign_action:
+                action = self.player_moving_action
 
             # Move player
             self.player.move(
@@ -765,6 +762,7 @@ class BombermanEnv(object):
 
             self.set_enemies_in_grid()
             self.set_player_in_grid()
+            # ("POS", self.player.pos_x, self.player.pos_y)
 
         ############################################
         """ FOR RENDERING THE GAME IN THE WINDOW """
@@ -791,7 +789,6 @@ class BombermanEnv(object):
                 y = player_bomb.pos_y
 
                 self.grid[x][y] = GridValues.BOMB_GRID_VAL
-                self.grid_state[x][y] += GridValues.BOMB_GRID_VAL
                 self.player.bomb_limit -= 1
 
         I: Incentives = self.incentives
@@ -863,7 +860,25 @@ class BombermanEnv(object):
         )
 
     def get_normalised_state(self):
-        return self.grid_state  # / self.MAX_VAL_IN_GRID
+        raw_state = np.array(self.grid_state)
+        one_hot_states = []
+
+        for grid_value in GridValues:
+            grid_value = int(grid_value)
+            one_hot = np.zeros_like(raw_state).astype(np.float32)
+            one_hot[np.where(raw_state == grid_value)] = 1.0
+            one_hot_states.append(one_hot)
+
+        bomb_one_hot = np.zeros_like(raw_state).astype(np.float32)
+        for bomb in self.bombs:
+            x, y = bomb.pos_x, bomb.pos_y
+            bomb_one_hot[x][y] = (
+                bomb.time_waited / Bomb.WAIT_DURATION
+            )
+
+        one_hot_states.append(bomb_one_hot)
+        encoded_state = np.stack(one_hot_states, axis=0)
+        return encoded_state
 
     def reset(self):
         # self.grid = [row[:] for row in GRID_BASE]
