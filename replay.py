@@ -21,8 +21,8 @@ model_path = "models/196.h5"
 
 env = BombermanEnv(surface, show_path, player_alg, en1_alg, en2_alg, en3_alg, TILE_SIZE)
 agent = DQN(
-    state_shape=env.stateShape,
-    action_size=env.actionSpaceSize
+    state_shape=env.state_shape,
+    action_size=env.action_space_size
 )
 agent.load(model_path)
 
@@ -41,7 +41,7 @@ while True:
         state = env.reset()
         state = np.expand_dims(state, axis=0)
     action = agent.act(state)
-    state, reward, done, gameinfo = env.step(env.actionSpace[action])
+    state, reward, done, gameinfo = env.step(env.action_space[action])
     state = np.expand_dims(state, axis=0)
     pygame.display.flip()
 

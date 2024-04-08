@@ -67,8 +67,8 @@ class Trainer(object):
         )
 
         self.agent = DQN(
-            state_shape=self.env.stateShape,
-            action_size=self.env.actionSpaceSize,
+            state_shape=self.env.state_shape,
+            action_size=self.env.action_space_size,
             batch_size=self.episode_buffer_size,
             learning_rate_max=self.learning_rate,
             learning_rate_decay=self.learning_rate_decay,
@@ -78,7 +78,7 @@ class Trainer(object):
             gamma=self.gamma
         )
         # agent.load(model_path)
-        self.agent.save(f'models/-1.h5')
+        self.agent.save(f'saves/-1.h5')
 
     @staticmethod
     def make_date_stamp():
@@ -109,7 +109,7 @@ class Trainer(object):
         while self.agent.memory.length() < self.episode_buffer_size:
             action = self.agent.act(state)
             next_state, reward, done, game_info = self.env.step(
-                self.env.actionSpace[action]
+                self.env.action_space[action]
             )
 
             # Change state shape from (Height, Width) to (Height, Width, 1)
@@ -129,7 +129,7 @@ class Trainer(object):
 
             while not done:
                 action = self.agent.act(state)
-                step_result = self.env.step(self.env.actionSpace[action])
+                step_result = self.env.step(self.env.action_space[action])
                 next_state, reward, done, game_info = step_result
                 next_state = np.expand_dims(next_state, axis=0)
                 self.agent.remember(state, action, reward, next_state, done)
