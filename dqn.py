@@ -45,16 +45,14 @@ class DQN:
         # the actual neural network structure
         model = tf.keras.models.Sequential()
         model.add(tf.keras.layers.Input(shape=self.state_shape))
-        """
-        model.add(tf.keras.layers.Conv2D(
-            32, (3, 3), activation='relu', padding='same',
-            kernel_initializer='he_uniform'
+        model.add(tf.keras.layers.Conv3D(
+            8, (8, 5, 5), activation='relu',
+            padding='same', kernel_initializer='he_uniform'
         ))
         model.add(tf.keras.layers.Conv2D(
-            64, (3, 3), activation='relu', padding='same', 
-            kernel_initializer='he_uniform'
+            8, (5, 5), activation='relu',
+            padding='same', kernel_initializer='he_uniform'
         ))
-        """
         model.add(tf.keras.layers.Flatten())
         model.add(tf.keras.layers.Dense(
             128, activation='relu', kernel_initializer='he_uniform'
