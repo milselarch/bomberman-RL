@@ -46,14 +46,14 @@ class DQN:
         model = tf.keras.models.Sequential()
         model.add(tf.keras.layers.Input(shape=self.state_shape))
         model.add(tf.keras.layers.Conv3D(
-            8, (8, 5, 5), activation='relu',
+            16, (8, 5, 5), activation='relu',
             padding='same', kernel_initializer='he_uniform',
-            data_format="channel_first"
+            data_format="channels_first", strides=(1, 2, 2)
         ))
-        model.add(tf.keras.layers.Conv2D(
-            16, (5, 5), activation='relu',
-            padding='same', kernel_initializer='he_uniform', strides=(2, 2),
-            data_format="channel_first"
+        model.add(tf.keras.layers.Conv3D(
+            8, (16, 5, 5), activation='relu',
+            padding='same', kernel_initializer='he_uniform',
+            data_format="channels_first", strides=(1, 1, 1)
         ))
         model.add(tf.keras.layers.Flatten())
         model.add(tf.keras.layers.Dense(
