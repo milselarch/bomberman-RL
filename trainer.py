@@ -33,7 +33,7 @@ class Trainer(object):
         self.exploration_max = 0.2
         self.exploration_min = 0.001  # 0.01
         self.gamma = 0.995  # 0.975
-        self.update_target_every = 10
+        self.update_target_every = 100
         self.episode_buffer_size = 128
         self.episodes = 50 * 1000
 
@@ -159,6 +159,9 @@ class Trainer(object):
             live_tag = 'alive' if is_alive else 'dead'
             if not is_alive:
                 kill_score -= 1
+
+            if e % self.update_target_every == 0:
+                self.agent.update_target_model()
 
             self.write_logs(
                 file_writer=self.t_logs_writer, episode_no=e,
