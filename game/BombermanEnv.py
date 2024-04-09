@@ -118,9 +118,8 @@ class BombermanEnv(object):
         self.enemies_prev_grid_pos_y = []
 
         self.player = Player()
-        tile_size = Player.TILE_SIZE
-        self.player_prev_grid_pos_x = int(self.player.pos_x / tile_size)
-        self.player_prev_grid_pos_y = int(self.player.pos_y / tile_size)
+        self.player_prev_grid_pos_x = self.player.grid_x
+        self.player_prev_grid_pos_y = self.player.grid_y
         self.player_direction_x = 0
         self.player_direction_y = 0
         self.player_moving = False
@@ -869,16 +868,27 @@ class BombermanEnv(object):
             one_hot[np.where(raw_state == grid_value)] = 1.0
             one_hot_states.append(one_hot)
 
-        bomb_one_hot = np.zeros_like(raw_state).astype(np.float32)
+            if grid_value == GridValues.PLAYER_GRID_VAL:
+                pass
+
+        bomb_waits = np.zeros_like(raw_state).astype(np.float32)
         for bomb in self.bombs:
             x, y = bomb.pos_x, bomb.pos_y
-            bomb_one_hot[x][y] = (
+            bomb_waits[x][y] = (
                 bomb.time_waited / Bomb.WAIT_DURATION
             )
 
-        one_hot_states.append(bomb_one_hot)
-        encoded_state = np.stack(one_hot_states, axis=0)
-        return encoded_state
+        one_hot_states.append(bomb_waits)
+        xy_state = np.stack(one_hot_states, axis=0)
+        mid_x = len(self.grid) // 2
+        mid_y = len(self.grid[0]) // 2
+        shift_x = mid_x - self.player.grid_x
+        shift_y = mid_y - self.player.grid_y
+
+        xy_state = np.roll(xy_state, shift_x, axis=1)
+        xy_state = np.roll(xy_state, shift_y, axis=2)
+        yx_state = np.transpose(xy_state, axes=(0, 2, 1))
+        return yx_state
 
     def reset(self):
         # self.grid = [row[:] for row in GRID_BASE]
@@ -904,9 +914,8 @@ class BombermanEnv(object):
         self.enemies_prev_grid_pos_y.clear()
 
         self.player = Player()
-        tile_size = Player.TILE_SIZE
-        self.player_prev_grid_pos_x = int(self.player.pos_x / tile_size)
-        self.player_prev_grid_pos_y = int(self.player.pos_y / tile_size)
+        self.player_prev_grid_pos_x = self.player.grid_x
+        self.player_prev_grid_pos_y = self.player.grid_y
         self.player_direction_x = 0
         self.player_direction_y = 0
         self.player_moving = False

@@ -20,7 +20,6 @@ class Bomb:
         return self.WAIT_DURATION - self.time
 
     def update(self, dt):
-
         self.time = self.time - dt
 
         if self.time < 1000:

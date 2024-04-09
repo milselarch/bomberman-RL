@@ -50,8 +50,8 @@ class DQN:
             padding='same', kernel_initializer='he_uniform'
         ))
         model.add(tf.keras.layers.Conv2D(
-            8, (5, 5), activation='relu',
-            padding='same', kernel_initializer='he_uniform'
+            16, (5, 5), activation='relu',
+            padding='same', kernel_initializer='he_uniform', strides=(2, 2)
         ))
         model.add(tf.keras.layers.Flatten())
         model.add(tf.keras.layers.Dense(

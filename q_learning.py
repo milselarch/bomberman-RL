@@ -4,7 +4,7 @@ import pygame
 from collections import deque
 from matplotlib import pyplot as plt
 from enums.algorithm import Algorithm
-from BombermanEnv import BombermanEnv
+from game.BombermanEnv import BombermanEnv
 from dqn import DQN
 
 if __name__ == '__main__':

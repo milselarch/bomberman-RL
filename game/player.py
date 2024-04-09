@@ -22,6 +22,14 @@ class Player(Actor):
     def is_player(self) -> bool:
         return True
 
+    @property
+    def grid_x(self):
+        return int(self.pos_x / self.TILE_SIZE)
+
+    @property
+    def grid_y(self):
+        return int(self.pos_y / self.TILE_SIZE)
+
     def move(self, dx, dy, grid, enemies, power_ups):
         tempx = int(self.pos_x / Player.TILE_SIZE)
         tempy = int(self.pos_y / Player.TILE_SIZE)
