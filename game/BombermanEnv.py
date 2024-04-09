@@ -361,17 +361,17 @@ class BombermanEnv(object):
             explosion = self.explosions[i]
 
             for grid_coord in explosion.sectors:
-                y, x = grid_coord
+                x, y = grid_coord
 
                 is_player_destroyed_box = (
                     explosion.bomber.is_player() and
-                    (self.grid_state[y][x] == GridValues.BOX_GRID_VAL)
+                    (self.grid_state[x][y] == GridValues.BOX_GRID_VAL)
                 )
 
                 if is_player_destroyed_box:
                     player_destroyed_boxes += 1
 
-                self.grid_state[y][x] = GridValues.EXPLOSION_GRID_VAL
+                self.grid_state[x][y] = GridValues.EXPLOSION_GRID_VAL
 
         return player_destroyed_boxes
 
