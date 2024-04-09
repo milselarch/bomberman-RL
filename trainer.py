@@ -32,7 +32,7 @@ class Trainer(object):
         self.exploration_decay = 0.9995  # 0.95
         self.exploration_max = 0.2
         self.exploration_min = 0.001  # 0.01
-        self.gamma = 0.995  # 0.975
+        self.gamma = 0.95  # 0.975
         self.update_target_every = 100
         self.episode_buffer_size = 128
         self.episodes = 50 * 1000
@@ -162,6 +162,7 @@ class Trainer(object):
 
             if e % self.update_target_every == 0:
                 self.agent.update_target_model()
+                print('TARGET MODEL_UPDATED')
 
             self.write_logs(
                 file_writer=self.t_logs_writer, episode_no=e,
