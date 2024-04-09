@@ -55,7 +55,7 @@ if __name__ == '__main__':
 
         while not done:
             rand = np.random.random()
-            action = env.max_action(Q, currentState, env.action_space) if rand < (1 - EPS) else env.actionSpaceSample()
+            action = env.max_action(Q, currentState, env.action_space) if rand < (1 - EPS) else env.action_space_sample()
             nextState, reward, done, info = env.step(action)
             epRewards += reward
             

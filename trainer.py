@@ -1,5 +1,7 @@
 import os
 
+from Transition import Transition
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
@@ -26,9 +28,8 @@ class Trainer(object):
         self.name = name
         self.incentives = incentives
 
-        self.learning_rate = 1e-4
-        self.learning_rate_decay = 1  # 0.99
-        self.exploration_decay = 0.999  # 0.95
+        self.learning_rate = 0.001
+        self.exploration_decay = 0.9995  # 0.95
         self.exploration_max = 0.2
         self.exploration_min = 0.001  # 0.01
         self.gamma = 0.995  # 0.975
@@ -71,7 +72,6 @@ class Trainer(object):
             action_size=self.env.action_space_size,
             batch_size=self.episode_buffer_size,
             learning_rate_max=self.learning_rate,
-            learning_rate_decay=self.learning_rate_decay,
             exploration_decay=self.exploration_decay,
             exploration_min=self.exploration_min,
             exploration_max=self.exploration_max,
@@ -102,8 +102,9 @@ class Trainer(object):
     def train(self):
         state = self.env.reset()
         state = np.expand_dims(state, axis=0)
-        most_recent_losses = deque(maxlen=self.episode_buffer_size)
+        most_recent_scores = deque(maxlen=self.episode_buffer_size)
         best_score = -float('inf')
+        ma_score = 0
 
         # fill up memory before training starts
         while self.agent.memory.length() < self.episode_buffer_size:
@@ -114,7 +115,10 @@ class Trainer(object):
 
             # Change state shape from (Height, Width) to (Height, Width, 1)
             next_state = np.expand_dims(next_state, axis=0)
-            self.agent.remember(state, action, reward, next_state, done)
+            self.agent.remember(Transition(
+                state=state, action=action, reward=reward,
+                next_state=next_state, done=done
+            ))
             state = next_state
 
         pbar = tqdm(range(self.episodes))
@@ -122,32 +126,32 @@ class Trainer(object):
         for e in pbar:
             state = self.env.reset()
             state = np.expand_dims(state, axis=0)
-            ma_loss = None
             done = False
             step = 0
-            loss = 0
 
             while not done:
                 action = self.agent.act(state)
                 step_result = self.env.step(self.env.action_space[action])
                 next_state, reward, done, game_info = step_result
                 next_state = np.expand_dims(next_state, axis=0)
-                self.agent.remember(state, action, reward, next_state, done)
+                self.agent.remember(Transition(
+                    state=state, action=action, reward=reward,
+                    next_state=next_state, done=done
+                ))
 
                 state = next_state
                 step += 1
 
-                most_recent_losses.append(loss)
-                ma_loss = np.array(most_recent_losses).mean()
-
-                if loss is not None:
+                if step % 10 == 0:
                     pbar.set_description(
                         f"[{self.date_stamp}] "
-                        f"Step: {step}. -- Loss: {loss:.6f}"
+                        f"Step: {step}. -- ma_score: {ma_score:.4f}"
                     )
 
-            loss = self.agent.replay(episode_no=e)
             game_score = self.env.get_score()
+            most_recent_scores.append(game_score)
+            ma_score = np.array(most_recent_scores).mean()
+            loss = self.agent.replay(episode_no=e)
 
             episode_kills = self.env.count_player_kills()
             kill_score = episode_kills
@@ -161,23 +165,23 @@ class Trainer(object):
                 loss_value=loss, kill_score=kill_score, is_alive=is_alive,
                 game_duration=self.env.steps, kills=self.env.player_kills,
                 boxes_destroyed=self.env.player_boxes_destroyed,
-                score=game_score
+                score=game_score, ma_score=ma_score
             )
 
             print(
                 f"Episode {e}/{self.episodes - 1} completed "
                 f"with {step} steps. "
-                f"LR: {self.agent.learning_rate:.3f}. "
-                f"EP: {self.agent.exploration_rate:.2f}. "
+                f"LR: {self.agent.learning_rate:.5f}. "
+                f"EP: {self.agent.exploration_rate:.5f}. "
                 f"Kills: {episode_kills} [{live_tag}] "
                 f"boxes: {self.env.player_boxes_destroyed} "
                 f"score: {game_score:.3f} "
             )
 
-            if game_score > best_score:
-                best_score = game_score
-                loss_tag = f'{best_score:.4f}'.replace('.', '_')
-                save_path = f'{self.model_save_dir}/{e}-L{loss_tag}.h5'
+            if ma_score > best_score:
+                best_score = ma_score
+                score_tag = f'{ma_score:.4f}'.replace('.', '_')
+                save_path = f'{self.model_save_dir}/{e}-S{score_tag}.h5'
                 print('new best model saved to:', save_path)
                 self.agent.save(save_path)
 
@@ -186,7 +190,7 @@ class Trainer(object):
         file_writer, episode_no: int,
         loss_value: float, kill_score: float, is_alive: int,
         game_duration: int, kills: int, boxes_destroyed: int,
-        score: float
+        score: float, ma_score: float
     ):
         with file_writer.as_default():
             tf.summary.scalar(
@@ -209,4 +213,7 @@ class Trainer(object):
             )
             tf.summary.scalar(
                 'score', data=score, step=episode_no
+            )
+            tf.summary.scalar(
+                'ma_score', data=ma_score, step=episode_no
             )

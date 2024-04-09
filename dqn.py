@@ -1,8 +1,14 @@
+import os
+
 import tensorflow as tf
 import numpy as np
 import random
+import torch
+from torch import optim, nn
 
-from prioritized_replay_buffer import PrioritizedReplayBuffer
+from Transition import Transition
+from models.SimpleDQN import SimpleDQN
+from PrioritizedReplayBuffer import PrioritizedReplayBuffer
 
 tf.keras.backend.set_floatx('float32')
 
@@ -10,7 +16,7 @@ tf.keras.backend.set_floatx('float32')
 class DQN:
     def __init__(
         self, state_shape, action_size, learning_rate_max=0.001,
-        learning_rate_decay=0.995, gamma=0.75, memory_size=2000,
+        gamma=0.75, memory_size=2000,
         batch_size=32, exploration_max=1.0, exploration_min=0.01,
         exploration_decay=0.995, use_gpu: bool = True
     ):
@@ -19,129 +25,119 @@ class DQN:
         self.action_size = action_size
         self.learning_rate_max = learning_rate_max
         self.learning_rate = learning_rate_max
-        self.learning_rate_decay = learning_rate_decay
-        self.gamma = gamma
         self.memory_size = memory_size
+        self.gamma = gamma
+
         self.memory = PrioritizedReplayBuffer(capacity=2000)
+
         self.batch_size = batch_size
         self.exploration_rate = exploration_max
         self.exploration_max = exploration_max
         self.exploration_min = exploration_min
         self.exploration_decay = exploration_decay
 
-        gpus = tf.config.list_logical_devices('GPU')
-        if use_gpu and (len(gpus) > 0):
-            self.device = gpus[0]
-        else:
-            self.device = '/cpu:0'
+        self.use_gpu = use_gpu and torch.cuda.is_available()
+        self.device = torch.device("cuda:0" if self.use_gpu else "cpu")
 
         self.model = self._build_model()
         self.target_model = self._build_model()
+        self.target_model.eval()
+
+        self.criterion = nn.MSELoss()
+        self.optimizer = optim.AdamW(
+            self.model.parameters(), lr=self.learning_rate, amsgrad=True
+        )
         self.update_target_model()
 
     def _build_model(self):
-        optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
-
-        # the actual neural network structure
-        model = tf.keras.models.Sequential()
-        model.add(tf.keras.layers.Input(shape=self.state_shape))
-        model.add(tf.keras.layers.Conv3D(
-            16, (8, 5, 5), activation='relu',
-            padding='same', kernel_initializer='he_uniform',
-            data_format="channels_first", strides=(1, 2, 2)
-        ))
-        model.add(tf.keras.layers.Conv3D(
-            8, (16, 5, 5), activation='relu',
-            padding='same', kernel_initializer='he_uniform',
-            data_format="channels_first", strides=(1, 1, 1)
-        ))
-        model.add(tf.keras.layers.Flatten())
-        model.add(tf.keras.layers.Dense(
-            128, activation='relu', kernel_initializer='he_uniform'
-        ))
-        model.add(tf.keras.layers.Dropout(0.2))
-        model.add(tf.keras.layers.Dense(
-            32, activation='relu', kernel_initializer='he_uniform'
-        ))
-        model.add(tf.keras.layers.Dropout(0.2))
-        model.add(tf.keras.layers.Dense(
-            self.action_size, activation='linear',
-            name='action_values', kernel_initializer='he_uniform'
-        ))
-        model.compile(loss='mse', optimizer=optimizer)
+        model = SimpleDQN(fcc_input_size=8 * 13 ** 2).to(self.device)
         return model
 
     def update_target_model(self):
-        self.target_model.set_weights(self.model.get_weights())
+        self.target_model.load_state_dict(self.model.state_dict())
 
-    def remember(self, state, action, reward, next_state, done):
-        self.memory.push((state, action, reward, next_state, done))
+    def remember(self, transition: Transition):
+        self.memory.push(transition)
 
-    def act(self, state, epsilon=None):
+    def act(self, state, epsilon=None) -> int:
         if epsilon is None:
             epsilon = self.exploration_rate
         if np.random.rand() < epsilon:
             return random.randrange(self.action_size)
 
-        with tf.device(self.device):
-            raw_prediction = np.array(
-                self.target_model.predict_on_batch(state)
-            )
+        state = torch.tensor(state).to(self.device)
+        with torch.no_grad():
+            raw_prediction = self.model.forward(state)
 
-        return np.argmax(raw_prediction[0])
+        prediction = raw_prediction.cpu().numpy()
+        return np.argmax(prediction[0])
 
     def replay(self, episode_no: int = 0):
         if self.memory.length() < self.batch_size:
             return None
 
-        experiences, indices, weights = self.memory.sample(self.batch_size)
-        unpacked_experiences = list(zip(*experiences))
-        states, actions, rewards, next_states, dones = [
-            list(arr) for arr in unpacked_experiences
+        batch, indices, weights = self.memory.sample(self.batch_size)
+        batch_size = len(batch)
+
+        state_batch = torch.tensor(np.concatenate(batch.states))
+        state_batch = state_batch.to(torch.float32).to(self.device)
+        action_batch = torch.tensor(batch.actions).to(torch.int32)
+        reward_batch = torch.tensor(batch.rewards)
+        reward_batch = reward_batch.to(torch.float32).to(self.device)
+        dones_batch = torch.tensor(batch.dones).to(torch.int32)
+        non_final_indexes = [
+            k for k in range(batch_size) if dones_batch[k] == 0
         ]
 
-        # Convert to tensors
-        states = tf.cast(tf.convert_to_tensor(states), tf.float32)
-        states = tf.reshape(states, self.state_tensor_shape)
-        actions = tf.convert_to_tensor(actions, dtype=tf.int32)
-        rewards = tf.convert_to_tensor(rewards, dtype=tf.float32)
-        next_states = tf.convert_to_tensor(next_states)
-        next_states = tf.reshape(next_states, self.state_tensor_shape)
-        dones = tf.convert_to_tensor(dones, dtype=tf.float32)
+        next_state_batch = torch.tensor(np.concatenate(batch.next_states))
+        next_state_batch = next_state_batch.to(torch.float32).to(self.device)
+        non_final_next_states = next_state_batch[non_final_indexes]
+        non_final_next_states = non_final_next_states.to(torch.float32)
 
-        # Compute Q values and next Q values
-        target_q_values = self.target_model.predict(next_states, verbose=0)
-        q_values = self.model.predict(states, verbose=0)
+        # get Q-value predictions for state-action pairs that were taken
+        state_action_values = self.model.forward(state_batch)[action_batch]
+        next_state_values = torch.zeros(batch_size, device=self.device)
 
-        # Compute target values using the Bellman equation
-        max_target_q_values = np.max(target_q_values, axis=1)
-        targets = rewards + (1 - dones) * self.gamma * max_target_q_values
+        with torch.no_grad():
+            # assign q-values of next states for non-final states
+            # i.e. for states that haven't ended
+            next_state_values[non_final_indexes] = self.target_model.forward(
+                non_final_next_states
+            ).max(1).values
 
-        # Compute TD errors
-        batch_indices = np.arange(self.batch_size)
-        q_values_current_action = q_values[batch_indices, actions]
-        td_errors = targets - q_values_current_action
-        self.memory.update_priorities(indices, np.abs(td_errors))
-
-        # For learning: Adjust Q values of taken actions to match the computed targets
-        q_values[batch_indices, actions] = targets
-        loss = self.model.train_on_batch(
-            states, q_values, sample_weight=weights,
-            reset_metrics=True
+        expected_state_action_values = (
+            (next_state_values * self.gamma) + reward_batch
         )
+
+        loss = self.criterion(
+            state_action_values, expected_state_action_values.unsqueeze(1)
+        )
+
+        loss_value = loss.item()
+        self.optimizer.zero_grad()
+        loss.backward()
+        # In-place gradient clipping
+        torch.nn.utils.clip_grad_value_(
+            self.model.parameters(), 100
+        )
+        self.optimizer.step()
 
         self.exploration_rate = (
             self.exploration_max * self.exploration_decay ** episode_no
         )
-        self.exploration_rate = max(self.exploration_min, self.exploration_rate)
-        self.learning_rate = self.learning_rate_max * self.learning_rate_decay ** episode_no
-        tf.keras.backend.set_value(self.model.optimizer.learning_rate, self.learning_rate)
-
-        return loss
+        self.exploration_rate = max(
+            self.exploration_min, self.exploration_rate
+        )
+        return loss_value
 
     def load(self, name):
-        self.model = tf.keras.models.load_model(name)
-        self.target_model = tf.keras.models.load_model(name)
+        self.model.load_state_dict(torch.load(name))
+        self.target_model.load_state_dict(torch.load(name))
 
-    def save(self, name):
-        self.model.save(name)
+    def save(self, path: str):
+        dirname = os.path.dirname(path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+
+        torch.save(self.model.state_dict(), path)
+

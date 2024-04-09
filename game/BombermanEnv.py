@@ -33,6 +33,8 @@ GRID_BASE = np.array(GRID_BASE_LIST)
 
 
 class BombermanEnv(object):
+    BACKGROUND_COLOR = (107, 142, 35)
+
     def __init__(
         self, surface, path, player_alg, en1_alg, en2_alg,
         en3_alg, scale, physics_fps: int = 15, render_fps: int = 15,
@@ -218,10 +220,7 @@ class BombermanEnv(object):
         ############################################
         ### FOR RENDERING THE GAME IN THE WINDOW ###
         ############################################
-
-        BACKGROUND_COLOR = (107, 142, 35)
-
-        self.surface.fill(BACKGROUND_COLOR)
+        self.surface.fill(self.BACKGROUND_COLOR)
 
         for i in range(len(self.grid)):
             for j in range(len(self.grid[i])):
@@ -349,7 +348,7 @@ class BombermanEnv(object):
         y = self.player_prev_grid_pos_y
         self.grid_state[x][y] = GridValues.PLAYER_GRID_VAL
 
-    def clearPlayerFromGrid(self):
+    def clear_player_from_grid(self):
         x = self.player_prev_grid_pos_x
         y = self.player_prev_grid_pos_y
         self.grid_state[x][y] = GridValues.EMPTY_GRID_VAL
@@ -381,7 +380,7 @@ class BombermanEnv(object):
             # occurred on the grid square
             self.grid_state[grid_coords_tuple[0]][grid_coords_tuple[1]] = 0
 
-    def is_game_ended(self):
+    def is_game_ended(self) -> bool:
         if not self.player.life:
             return True
 
@@ -423,7 +422,7 @@ class BombermanEnv(object):
         if self.player not in self.enemy_list:
             self.player.check_death(self.explosions)
             if not self.player.life:
-                self.clearPlayerFromGrid()
+                self.clear_player_from_grid()
 
         for enemy in self.enemy_list:
             _, killed_by_player = enemy.check_death(self.explosions)
@@ -490,8 +489,8 @@ class BombermanEnv(object):
         return False
 
     def check_if_walking_out_of_bomb_range(self):
-        playerPosX = self.player.pos_x
-        playerPosY = self.player.pos_y
+        player_pos_x = self.player.pos_x
+        player_pos_y = self.player.pos_y
 
         if self.player_in_bomb_range:
             for bomb in self.bombs:
@@ -502,8 +501,8 @@ class BombermanEnv(object):
                 for explosion_field_coords in bomb.sectors:
                     x, y = explosion_field_coords
                     in_explosion_range = (
-                        int(playerPosX / Player.TILE_SIZE) == x and
-                        int(playerPosY / Player.TILE_SIZE) == y
+                        int(player_pos_x / Player.TILE_SIZE) == x and
+                        int(player_pos_y / Player.TILE_SIZE) == y
                     )
                     if in_explosion_range:
                         # As long as player's grid is still in any
@@ -850,7 +849,7 @@ class BombermanEnv(object):
         if not self.player.life:
             reward += I.DEATH_PENALTY
             # print('DIE', I.DEATH_PENALTY)
-            self.clearPlayerFromGrid()
+            self.clear_player_from_grid()
 
         self._score += reward
         return (
@@ -996,7 +995,7 @@ class BombermanEnv(object):
 
         return player_kills
 
-    def actionSpaceSample(self):
+    def action_space_sample(self):
         #####################################
         """ Just randomly take any action """
         #####################################

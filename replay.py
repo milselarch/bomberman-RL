@@ -1,10 +1,9 @@
 import numpy as np
 import pygame
-import dqn
 
 from enums.algorithm import Algorithm
 from dqn import DQN
-from BombermanEnv import BombermanEnv
+from game.BombermanEnv import BombermanEnv
 
 pygame.display.init()
 INFO = pygame.display.Info()

@@ -1,4 +1,8 @@
+from typing import List
+
 import numpy as np
+
+from Transition import Transition, TransitionsBatch
 
 
 class PrioritizedReplayBuffer:
@@ -12,18 +16,18 @@ class PrioritizedReplayBuffer:
         self.beta = beta    # for importance sampling weights
         self.beta_increment = beta_increment
         self.priority_buffer = np.zeros(self.capacity)
-        self.data = []
+        self.data: List[Transition] = []
         self.position = 0
 
     def length(self):
         return len(self.data)
 
-    def push(self, experience):
+    def push(self, transition: Transition):
         max_priority = np.max(self.priority_buffer) if self.data else 1.0
         if len(self.data) < self.capacity:
-            self.data.append(experience)
+            self.data.append(transition)
         else:
-            self.data[self.position] = experience
+            self.data[self.position] = transition
 
         self.priority_buffer[self.position] = max_priority
         self.position = (self.position + 1) % self.capacity
@@ -33,16 +37,18 @@ class PrioritizedReplayBuffer:
         probabilities = priorities ** self.alpha
         probabilities /= probabilities.sum()
 
-        indices = np.random.choice(len(self.data), batch_size, p=probabilities)
-        experiences = [self.data[i] for i in indices]
+        indices = np.random.choice(
+            len(self.data), batch_size, p=probabilities
+        )
+        experiences: List[Transition] = [self.data[i] for i in indices]
 
         total = len(self.data)
         weights = (total * probabilities[indices]) ** (-self.beta)
         weights /= weights.max()
 
         self.beta = np.min([1., self.beta + self.beta_increment])
-        
-        return experiences, indices, weights
+        batch = TransitionsBatch.build(experiences)
+        return batch, indices, weights
 
     def update_priorities(self, indices, errors):
         for idx, error in zip(indices, errors):
