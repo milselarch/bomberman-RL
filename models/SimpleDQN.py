@@ -8,7 +8,7 @@ from typing import Union, Tuple, Iterable, List
 class SimpleDQN(nn.Module):
     def __init__(
         self, fcc_input_size: int,
-        fcn_layers=(128, 32), num_actions: int = 4,
+        fcn_layers=(128, 32, 16), num_actions: int = 4,
         dropout_p: float = 0.0, use_batch_norm: bool = False
     ):
         super(SimpleDQN, self).__init__()

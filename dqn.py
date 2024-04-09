@@ -15,8 +15,8 @@ tf.keras.backend.set_floatx('float32')
 
 class DQN:
     def __init__(
-        self, state_shape, action_size, learning_rate_max=0.001,
-        gamma=0.75, memory_size=2000,
+        self, state_shape, action_size: int,
+        learning_rate_max=0.001, gamma=0.75, memory_size=2000,
         batch_size=32, exploration_max=1.0, exploration_min=0.01,
         exploration_decay=0.995, use_gpu: bool = True
     ):
@@ -50,7 +50,9 @@ class DQN:
         self.update_target_model()
 
     def _build_model(self):
-        model = SimpleDQN(fcc_input_size=8 * 13 ** 2).to(self.device)
+        model = SimpleDQN(
+            fcc_input_size=8 * 13 ** 2, num_actions=self.action_size
+        ).to(self.device)
         return model
 
     def update_target_model(self):
