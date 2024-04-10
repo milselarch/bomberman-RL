@@ -38,7 +38,8 @@ class BombermanEnv(object):
     def __init__(
         self, surface, path, player_alg, en1_alg, en2_alg,
         en3_alg, scale, physics_fps: int = 15, render_fps: int = 15,
-        simulate_time: bool = False, incentives: Incentives = Incentives()
+        simulate_time: bool = False, incentives: Incentives = Incentives(),
+        max_steps: int = 3000
     ):
         """
         :param surface:
@@ -60,6 +61,7 @@ class BombermanEnv(object):
         self.physics_fps = physics_fps
         self.render_fps = render_fps
         self.simulate_time = simulate_time
+        self.max_steps = max_steps
 
         # cumulative sum of rewards recieved throughout the game
         self._score: float = 0.0
@@ -382,6 +384,8 @@ class BombermanEnv(object):
 
     def is_game_ended(self) -> bool:
         if not self.player.life:
+            return True
+        if self._steps >= self.max_steps:
             return True
 
         for en in self.enemy_list:

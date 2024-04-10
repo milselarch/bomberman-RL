@@ -1,22 +1,20 @@
 import os
 
-import tensorflow as tf
 import numpy as np
 import random
 import torch
-from torch import optim, nn
 
+from torch import optim, nn
 from Transition import Transition
 from models.SimpleDQN import SimpleDQN
-from PrioritizedReplayBuffer import PrioritizedReplayBuffer
-
-tf.keras.backend.set_floatx('float32')
+# from PrioritizedReplayBuffer import PrioritizedReplayBuffer
+from ReplayBuffer import ReplayMemory
 
 
 class DQN:
     def __init__(
         self, state_shape, action_size: int,
-        learning_rate_max=0.001, gamma=0.75, memory_size=2000,
+        learning_rate_max=0.001, gamma=0.75, memory_size=4000,
         batch_size=32, exploration_max=1.0, exploration_min=0.01,
         exploration_decay=0.995, use_gpu: bool = True
     ):
@@ -28,7 +26,7 @@ class DQN:
         self.memory_size = memory_size
         self.gamma = gamma
 
-        self.memory = PrioritizedReplayBuffer(capacity=2000)
+        self.memory = ReplayMemory(capacity=self.memory_size)
 
         self.batch_size = batch_size
         self.exploration_rate = exploration_max
@@ -78,7 +76,7 @@ class DQN:
         if self.memory.length() < self.batch_size:
             return None
 
-        batch, indices, weights = self.memory.sample(self.batch_size)
+        batch = self.memory.sample(self.batch_size)
         batch_size = len(batch)
 
         state_batch = torch.tensor(np.concatenate(batch.states))

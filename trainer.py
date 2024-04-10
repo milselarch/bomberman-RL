@@ -77,8 +77,6 @@ class Trainer(object):
             exploration_max=self.exploration_max,
             gamma=self.gamma
         )
-        # agent.load(model_path)
-        self.agent.save(f'saves/-1.h5')
 
     @staticmethod
     def make_date_stamp():
