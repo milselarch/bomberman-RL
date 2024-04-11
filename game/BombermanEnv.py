@@ -647,8 +647,8 @@ class BombermanEnv(object):
             grid_y = int(player_pos_y / Player.TILE_SIZE)
             top = self.grid[grid_x][grid_y-1]
             bottom = self.grid[grid_x][grid_y+1]
-            left = self.grid[grid_x+1][grid_y]
-            right = self.grid[grid_x-1][grid_y]
+            left = self.grid[grid_x-1][grid_y]
+            right = self.grid[grid_x+1][grid_y]
 
             obstacle_grid_values = [
                 GridValues.WALL_GRID_VAL,
