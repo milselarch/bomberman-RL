@@ -12,6 +12,7 @@ from game.player import Player
 from game.enemy import Enemy
 from game.explosion import Explosion
 from game.bomb import Bomb
+from TrainingSettingsBools import TrainingSettingsBools
 
 GRID_BASE_LIST = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -99,10 +100,8 @@ class BombermanEnv(object):
             self.UP, self.DOWN, self.LEFT, self.RIGHT,
             self.BOMB, self.WAIT
         ]
-        self.actionSpaceIdxDict = {
-            self.UP: 0, self.DOWN: 1, self.LEFT: 2, self.RIGHT: 3,
-            self.BOMB: 4, self.WAIT: 5
-        }
+
+        self.action_space_idx_map = {self.action_space[k]: k for k in range(len(self.action_space))}
 
         self.action_space_size = len(self.action_space)
         self.actions_shape = (self.action_space_size,)
@@ -621,40 +620,62 @@ class BombermanEnv(object):
         left = self.grid[grid_x+1][grid_y]
         right = self.grid[grid_x-1][grid_y]
 
+        # return (
+        #     (top == GridValues.WALL_GRID_VAL or top == GridValues.BOX_GRID_VAL or top == GridValues.BOMB_GRID_VAL) and
+        #     (bottom == GridValues.WALL_GRID_VAL or bottom == GridValues.BOX_GRID_VAL or bottom == GridValues.BOMB_GRID_VAL) and
+        #     (left == GridValues.WALL_GRID_VAL or left == GridValues.BOX_GRID_VAL or left == GridValues.BOMB_GRID_VAL) and
+        #     (right == GridValues.WALL_GRID_VAL or right == GridValues.BOX_GRID_VAL or right == GridValues.BOMB_GRID_VAL)
+        # )
+
+        obstacle_grid_values = [
+            GridValues.WALL_GRID_VAL,
+            GridValues.BOX_GRID_VAL,
+            GridValues.BOMB_GRID_VAL
+        ]
+
         return (
-            (top == GridValues.WALL_GRID_VAL or top == GridValues.BOX_GRID_VAL or top == GridValues.BOMB_GRID_VAL) and
-            (bottom == GridValues.WALL_GRID_VAL or bottom == GridValues.BOX_GRID_VAL or bottom == GridValues.BOMB_GRID_VAL) and
-            (left == GridValues.WALL_GRID_VAL or left == GridValues.BOX_GRID_VAL or left == GridValues.BOMB_GRID_VAL) and
-            (right == GridValues.WALL_GRID_VAL or right == GridValues.BOX_GRID_VAL or right == GridValues.BOMB_GRID_VAL)
-        )
+            top in obstacle_grid_values and
+            bottom in obstacle_grid_values and
+            left in obstacle_grid_values and
+            right in obstacle_grid_values
+        ) 
 
     def get_illegal_actions(self):
-        player_pos_x = self.player.pos_x
-        player_pos_y = self.player.pos_y
-
-        grid_x = int(player_pos_x / Player.TILE_SIZE)
-        grid_y = int(player_pos_y / Player.TILE_SIZE)
-        top = self.grid[grid_x][grid_y-1]
-        bottom = self.grid[grid_x][grid_y+1]
-        left = self.grid[grid_x+1][grid_y]
-        right = self.grid[grid_x-1][grid_y]
-
         illegal_actions = []
+        
+        if TrainingSettingsBools.IS_CHECKING_ILLEGAL_ACTION:
 
-        if (top == GridValues.WALL_GRID_VAL or top == GridValues.BOX_GRID_VAL or top == GridValues.BOMB_GRID_VAL or top == GridValues.ENEMY_GRID_VAL):
-            illegal_actions.append(self.actionSpaceIdxDict[self.UP])
+            player_pos_x = self.player.pos_x
+            player_pos_y = self.player.pos_y
 
-        if (bottom == GridValues.WALL_GRID_VAL or bottom == GridValues.BOX_GRID_VAL or bottom == GridValues.BOMB_GRID_VAL or top == GridValues.ENEMY_GRID_VAL):
-            illegal_actions.append(self.actionSpaceIdxDict[self.DOWN]) 
+            grid_x = int(player_pos_x / Player.TILE_SIZE)
+            grid_y = int(player_pos_y / Player.TILE_SIZE)
+            top = self.grid[grid_x][grid_y-1]
+            bottom = self.grid[grid_x][grid_y+1]
+            left = self.grid[grid_x+1][grid_y]
+            right = self.grid[grid_x-1][grid_y]
 
-        if (left == GridValues.WALL_GRID_VAL or left == GridValues.BOX_GRID_VAL or left == GridValues.BOMB_GRID_VAL or top == GridValues.ENEMY_GRID_VAL):
-            illegal_actions.append(self.actionSpaceIdxDict[self.LEFT])
+            obstacle_grid_values = [
+                GridValues.WALL_GRID_VAL,
+                GridValues.BOX_GRID_VAL,
+                GridValues.BOMB_GRID_VAL,
+                GridValues.ENEMY_GRID_VAL
+            ]
 
-        if (right == GridValues.WALL_GRID_VAL or right == GridValues.BOX_GRID_VAL or right == GridValues.BOMB_GRID_VAL or top == GridValues.ENEMY_GRID_VAL):
-            illegal_actions.append(self.actionSpaceIdxDict[self.RIGHT])
+            if (top in obstacle_grid_values):
+                illegal_actions.append(self.action_space_idx_map[self.UP])
 
-        if self.player.bomb_limit == 0:
-            illegal_actions.append(self.actionSpaceIdxDict[self.BOMB])
+            if (bottom in obstacle_grid_values):
+                illegal_actions.append(self.action_space_idx_map[self.DOWN]) 
+
+            if (left in obstacle_grid_values):
+                illegal_actions.append(self.action_space_idx_map[self.LEFT])
+
+            if (right in obstacle_grid_values):
+                illegal_actions.append(self.action_space_idx_map[self.RIGHT])
+
+            if self.player.bomb_limit == 0:
+                illegal_actions.append(self.action_space_idx_map[self.BOMB])
 
         return illegal_actions
 

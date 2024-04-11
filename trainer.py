@@ -17,12 +17,9 @@ from enums.algorithm import Algorithm
 from game.BombermanEnv import BombermanEnv
 from memory_profiler import profile as profile_memory
 from dqn import DQN
-
+from TrainingSettingsBools import TrainingSettingsBools
 
 class Trainer(object):
-
-    global IS_MANUAL_CONTROL
-    IS_MANUAL_CONTROL = False
 
     def __init__(
         self, name='ddqn', incentives: Incentives = Incentives()
@@ -129,7 +126,7 @@ class Trainer(object):
             step = 0
 
             while not done:
-                if not IS_MANUAL_CONTROL:
+                if not TrainingSettingsBools.IS_MANUAL_CONTROL:
                     ##########################################
                     ##########################################
                     ''' Q-learning Model Picking of Action '''
@@ -138,7 +135,7 @@ class Trainer(object):
                     ##########################################
                     ##########################################
 
-                elif IS_MANUAL_CONTROL:
+                elif TrainingSettingsBools.IS_MANUAL_CONTROL:
                     ####################################################################################
                     ####################################################################################
                     ''' NOTE: DO NOT REMOVE

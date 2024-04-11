@@ -1,6 +1,5 @@
 from enum import IntEnum
 
-
 class GridValues(IntEnum):
     EMPTY_GRID_VAL = 0
     WALL_GRID_VAL = 1
@@ -9,8 +8,6 @@ class GridValues(IntEnum):
     ENEMY_GRID_VAL = 4
     PLAYER_GRID_VAL = 5
     EXPLOSION_GRID_VAL = 9
-    BOMB_FRAME_2_GRID_VAL = 20
-    BOMB_FRAME_1_GRID_VAL = 21
     # 1 is for indestructible walls
     # 2 is for destructible walls
     # 3 is for bombs
@@ -22,5 +19,3 @@ class GridValues(IntEnum):
     # 9+2 = 11 for explosion with box
     # 9+4 = 13 for explosion with enemy
     # 9+5 = 14 for explosion with player
-    # 20 for bomb frame 2 (going to explode)
-    # 21 for bomb frame 1 (right before exploding)
