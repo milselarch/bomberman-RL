@@ -409,11 +409,6 @@ class BombermanEnv(object):
             x, y = bomb.pos_x, bomb.pos_y
             bomb.update(dt)
 
-            if bomb.frame == 2:
-                self.grid_state[bomb.pos_x][bomb.pos_y] = GridValues.BOMB_FRAME_2_GRID_VAL
-            if bomb.frame == 1:
-                self.grid_state[bomb.pos_x][bomb.pos_y] = GridValues.BOMB_FRAME_1_GRID_VAL
-
             if bomb.time < 1:
                 bomb.bomber.bomb_limit += 1
                 self.grid[x][y] = 0
