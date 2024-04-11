@@ -8,7 +8,7 @@ from torch import optim, nn
 from Transition import Transition
 from models.DQN_3D import DQN_3D
 from models.SimpleDQN import SimpleDQN
-# from PrioritizedReplayBuffer import PrioritizedReplayBuffer
+from PrioritizedReplayBuffer import PrioritizedReplayBuffer
 from ReplayBuffer import ReplayMemory
 
 
@@ -27,7 +27,7 @@ class DQN:
         self.memory_size = memory_size
         self.gamma = gamma
 
-        self.memory = ReplayMemory(capacity=self.memory_size)
+        self.memory = PrioritizedReplayBuffer(capacity=self.memory_size)
 
         self.batch_size = batch_size
         self.exploration_rate = exploration_max

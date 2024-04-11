@@ -1,9 +1,12 @@
+from typing import List
+
 import pygame
 import math
 
 from game.bomb import Bomb
 from enums.power_up_type import PowerUpType
 from game.Actor import Actor
+from game.explosion import Explosion
 
 
 class Player(Actor):
@@ -89,17 +92,39 @@ class Player(Actor):
                 self.consume_power_up(pu, power_ups)
 
     def plant_bomb(self, map) -> Bomb:
-        b = Bomb(
-            self.range, round(self.pos_x / Player.TILE_SIZE),
-            round(self.pos_y / Player.TILE_SIZE), map, self
-        )
+        b = Bomb(self.range, self.grid_x, self.grid_y, map, self)
         return b
 
-    def check_death(self, exp):
-        for e in exp:
-            for s in e.sectors:
-                if int(self.pos_x / Player.TILE_SIZE) == s[0] and int(self.pos_y / Player.TILE_SIZE) == s[1]:
+    def check_death(self, explosions: List[Explosion]) -> float:
+        """
+        :param explosions: ongoing explosions to check for death against
+        :return:
+        how close the player was to the nearest bomb, scaled from 0 to 1
+        1 means the player was right at the center of explosion
+        0 means the player was out of the range of the explosion
+        """
+        max_closeness = 0.0
+
+        for explosion in explosions:
+            for sector in explosion.sectors:
+                if self.grid_x == sector[0] and self.grid_y == sector[1]:
                     self.life = False
+                    distance_from_bomb = (
+                        abs(self.grid_x - explosion.source_x) +
+                        abs(self.grid_y - explosion.source_y)
+                    )
+
+                    closeness = 1.0 - distance_from_bomb / explosion.range
+                    """
+                    try:
+                        assert 1 >= closeness >= 0
+                    except AssertionError as e:
+                        print('INVALID_CLOSENESS:', closeness)
+                        raise e
+                    """
+                    max_closeness = max(max_closeness, closeness)
+
+        return max_closeness
 
     def consume_power_up(self, power_up, power_ups):
         if power_up.type == PowerUpType.BOMB:

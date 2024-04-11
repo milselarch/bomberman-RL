@@ -5,6 +5,7 @@ import pygame
 # import matplotlib.pyplot as plt
 
 from typing import List, Tuple
+from dataclasses import dataclass
 from game.GridValues import GridValues
 from game.Incentives import Incentives
 from enums.algorithm import Algorithm
@@ -30,6 +31,13 @@ GRID_BASE_LIST = [
 ]
 
 GRID_BASE = np.array(GRID_BASE_LIST)
+
+
+@dataclass
+class UpdateBombsResult(object):
+    closeness_to_bomb: float
+    player_kills: int
+    player_destroyed_boxes: int
 
 
 class BombermanEnv(object):
@@ -219,9 +227,7 @@ class BombermanEnv(object):
         return self._score
 
     def draw(self):
-        ############################################
-        ### FOR RENDERING THE GAME IN THE WINDOW ###
-        ############################################
+        # FOR RENDERING THE GAME IN THE WINDOW
         self.surface.fill(self.BACKGROUND_COLOR)
 
         for i in range(len(self.grid)):
@@ -394,12 +400,13 @@ class BombermanEnv(object):
 
         return True
 
-    def update_bombs(self, dt) -> Tuple[int, int]:
+    def update_bombs(self, dt) -> UpdateBombsResult:
         """
         :param dt:
         :return:
         number of player kills
         """
+        closeness_to_bomb = 0.0
         player_kills, player_destroyed_boxes = 0, 0
 
         for bomb in self.bombs:
@@ -424,7 +431,7 @@ class BombermanEnv(object):
                 self.set_explosions_in_grid()
 
         if self.player not in self.enemy_list:
-            self.player.check_death(self.explosions)
+            closeness_to_bomb = self.player.check_death(self.explosions)
             if not self.player.life:
                 self.clear_player_from_grid()
 
@@ -444,7 +451,11 @@ class BombermanEnv(object):
                 self.explosions.remove(explosion)
                 self.clear_explosion_from_grid(explosion)
 
-        return player_kills, player_destroyed_boxes
+        return UpdateBombsResult(
+            closeness_to_bomb=closeness_to_bomb,
+            player_kills=player_kills,
+            player_destroyed_boxes=player_destroyed_boxes
+        )
 
     def check_if_in_bomb_range(self):
         player_pos_x = self.player.pos_x
@@ -787,13 +798,22 @@ class BombermanEnv(object):
         I: Incentives = self.incentives
         reward: float = 0
 
-        player_kills, player_destroyed_boxes = self.update_bombs(dt)
+        update_bombs_result = self.update_bombs(dt)
+        player_destroyed_boxes = update_bombs_result.player_destroyed_boxes
+        player_kills = update_bombs_result.player_kills
+        closeness = update_bombs_result.closeness_to_bomb
         self.player_boxes_destroyed += player_destroyed_boxes
-        self.player_kills += player_kills
+        self.player_kills += update_bombs_result.player_kills
 
+        bomb_closeness_reward = I.BOMB_DEATH_DISTANCE_PENALTY * closeness
         destroy_enemy_reward = I.DESTROY_ENEMY_REWARD * player_kills
         destroy_box_reward = I.DESTROY_BOX_REWARD * player_destroyed_boxes
-        reward += destroy_enemy_reward + destroy_box_reward
+        reward += destroy_enemy_reward
+        reward += destroy_box_reward
+        reward += bomb_closeness_reward
+
+        if bomb_closeness_reward != 0:
+            print("CLOSENESS", bomb_closeness_reward)
 
         """
         if (destroy_box_reward != 0) or (destroy_enemy_reward != 0):
