@@ -18,8 +18,6 @@ from game.BombermanEnv import BombermanEnv
 from memory_profiler import profile as profile_memory
 from dqn import DQN
 
-fp = open('memory_profiler.log', 'w')
-
 
 class Trainer(object):
     def __init__(
@@ -28,13 +26,13 @@ class Trainer(object):
         self.name = name
         self.incentives = incentives
 
-        self.learning_rate = 0.001
+        self.learning_rate = 0.01
         self.exploration_decay = 0.9995  # 0.95
         self.exploration_max = 0.2
         self.exploration_min = 0.001  # 0.01
-        self.gamma = 0.95  # 0.975
+        self.gamma = 0.99  # 0.975
         self.update_target_every = 100
-        self.episode_buffer_size = 128
+        self.episode_buffer_size = 256
         self.episodes = 50 * 1000
 
         self.logs_dir = 'logs'
@@ -96,7 +94,6 @@ class Trainer(object):
         self.t_logs_writer = tf.summary.create_file_writer(train_path)
         self.v_logs_writer = tf.summary.create_file_writer(valid_path)
 
-    @profile_memory(stream=fp)
     def train(self):
         state = self.env.reset()
         state = np.expand_dims(state, axis=0)

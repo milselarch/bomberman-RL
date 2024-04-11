@@ -5,22 +5,38 @@ import torch.nn.functional as F
 from typing import Union, Tuple, Iterable, List
 
 
-class SimpleDQN(nn.Module):
+class DQN_3D(nn.Module):
     def __init__(
         self, fcc_input_size: int,
-        fcn_layers=(128, 32, 16), num_actions: int = 4,
+        fcn_layers=(128, 32, 16), num_actions: int = 6,
         dropout_p: float = 0.0, use_batch_norm: bool = False
     ):
-        super(SimpleDQN, self).__init__()
+        super(DQN_3D, self).__init__()
         self.fcc_list = fcn_layers + (num_actions,)
         self.use_batch_norm = use_batch_norm
         self.fcc_input_size = fcc_input_size
         self.num_actions = num_actions
 
-        self.fcc = self.make_dense(
-            self.fcc_list, input_size=self.fcc_input_size,
-            dropout_p=dropout_p, num_outputs=num_actions,
-            use_batch_norm=self.use_batch_norm
+        # Convolutional layers to extract features
+        self.conv_layers = nn.Sequential(
+            nn.Conv3d(
+                in_channels=1, out_channels=32,
+                stride=1, padding=1, kernel_size=(8, 5, 5)
+            ),
+            nn.ReLU(),
+            nn.Conv3d(
+                in_channels=32, out_channels=8, kernel_size=3,
+                stride=1, padding=1
+            ),
+            nn.ReLU()
+        )
+
+        # Fully connected layers to output action Q-values
+        self.fc_layers = nn.Sequential(
+            nn.Linear(2904, 256),
+            nn.ReLU(),
+            # Output action Q-values for 6 actions
+            nn.Linear(256, self.num_actions)
         )
 
     @staticmethod
@@ -60,8 +76,10 @@ class SimpleDQN(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         shape = x.shape
+        x = x.unsqueeze(1)
         # batch, channels, height, width
         assert len(shape) == 4
-        x = x.reshape((shape[0], -1))
-        out = self.fcc(x)
-        return out
+        conv_out = self.conv_layers(x)
+        x = conv_out.reshape(shape[0], -1)
+        x = self.fc_layers(x)
+        return x

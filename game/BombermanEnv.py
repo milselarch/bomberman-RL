@@ -656,69 +656,60 @@ class BombermanEnv(object):
             )
 
         if self.player.life:
-            assign_action = True
+            assign_action = False
+            self.current_player_direction = self.player.direction
+            self.player_moving = True
 
-            if not self.player_moving:
-                assign_action = False
-                # When player was originally not moving, or has
-                # reached its destination grid square,
-                # and an action to move is given as input, then
-                # set up values such that player would move
-                # in the same direction until they reach the destination grid.
-                # THIS IS TO STOP THE PLAYER FROM STOPPING IN BETWEEN SQUARES.
-                self.current_player_direction = self.player.direction
-                self.player_moving = True
+            self.player_direction_x = 0
+            self.player_direction_y = 0
+            self.player_moving_action = action
 
+            if action == self.DOWN:
+                self.current_player_direction = 0
+                self.player_direction_x = 0
+                self.player_direction_y = 1
+            elif action == self.RIGHT:
+                self.current_player_direction = 1
+                self.player_direction_x = 1
+                self.player_direction_y = 0
+            elif action == self.UP:
+                self.current_player_direction = 2
+                self.player_direction_x = 0
+                self.player_direction_y = -1
+            elif action == self.LEFT:
+                self.current_player_direction = 3
+                self.player_direction_x = -1
+                self.player_direction_y = 0
+            elif action == self.WAIT or action == self.BOMB:
                 self.player_direction_x = 0
                 self.player_direction_y = 0
-                self.player_moving_action = action
+                self.player_moving = False
+                self.player_moving_action = ''
 
-                if action == self.DOWN:
-                    self.current_player_direction = 0
+            # print('ACT', self.player_moving_action, [action])
+            if self.player_moving:
+                # Storing Destination Grid Coordinates in Grid
+                self.player_next_grid_pos_x = int(
+                    self.player.pos_x / Player.TILE_SIZE
+                ) + self.player_direction_x
+                self.player_next_grid_pos_y = int(
+                    self.player.pos_y / Player.TILE_SIZE
+                ) + self.player_direction_y
+
+                x = self.player_next_grid_pos_x
+                y = self.player_next_grid_pos_y
+                grid_val = self.grid[x][y]
+
+                if (grid_val == 1) or (grid_val == 2) or (grid_val == 3):
+                    # If Destination Grid is a Wall, Destructible Box
+                    # or Bomb, Reset Values to not Force Player to Move
+                    # in that Direction.
                     self.player_direction_x = 0
-                    self.player_direction_y = 1
-                elif action == self.RIGHT:
-                    self.current_player_direction = 1
-                    self.player_direction_x = 1
                     self.player_direction_y = 0
-                elif action == self.UP:
-                    self.current_player_direction = 2
-                    self.player_direction_x = 0
-                    self.player_direction_y = -1
-                elif action == self.LEFT:
-                    self.current_player_direction = 3
-                    self.player_direction_x = -1
-                    self.player_direction_y = 0
-                elif action == self.WAIT or action == self.BOMB:
-                    self.player_direction_x = 0
-                    self.player_direction_y = 0
+                    self.player_next_grid_pos_x = None
+                    self.player_next_grid_pos_y = None
                     self.player_moving = False
                     self.player_moving_action = ''
-
-                # print('ACT', self.player_moving_action, [action])
-                if self.player_moving:
-                    # Storing Destination Grid Coordinates in Grid
-                    self.player_next_grid_pos_x = int(
-                        self.player.pos_x / Player.TILE_SIZE
-                    ) + self.player_direction_x
-                    self.player_next_grid_pos_y = int(
-                        self.player.pos_y / Player.TILE_SIZE
-                    ) + self.player_direction_y
-
-                    x = self.player_next_grid_pos_x
-                    y = self.player_next_grid_pos_y
-                    grid_val = self.grid[x][y]
-
-                    if (grid_val == 1) or (grid_val == 2) or (grid_val == 3):
-                        # If Destination Grid is a Wall, Destructible Box
-                        # or Bomb, Reset Values to not Force Player to Move
-                        # in that Direction.
-                        self.player_direction_x = 0
-                        self.player_direction_y = 0
-                        self.player_next_grid_pos_x = None
-                        self.player_next_grid_pos_y = None
-                        self.player_moving = False
-                        self.player_moving_action = ''
 
             player_next_x = self.player_next_grid_pos_x
             player_next_y = self.player_next_grid_pos_y
@@ -823,32 +814,30 @@ class BombermanEnv(object):
         # NOT_MOVING_TO_DEST_GRID_PENALTY = -1000
         # MOVING_TO_DEST_GRID_PENALTY = 1000
 
-        if not self.player_moving:
-            # Only give reward if player is not moving between grid squares.
-            if self.check_if_in_bomb_range():
-                reward += I.IN_BOMB_RANGE_PENALTY
-            else:
-                reward += I.NOT_IN_BOMB_RANGE_PENALTY
+        if self.check_if_in_bomb_range():
+            reward += I.IN_BOMB_RANGE_PENALTY
+        else:
+            reward += I.NOT_IN_BOMB_RANGE_PENALTY
 
-            if self.check_if_walking_to_bomb_range():
-                reward += I.MOVING_INTO_BOMB_RANGE_PENALTY
+        if self.check_if_walking_to_bomb_range():
+            reward += I.MOVING_INTO_BOMB_RANGE_PENALTY
 
-            if self.check_if_walking_out_of_bomb_range():
-                reward += I.MOVING_FROM_BOMB_RANGE_REWARD
-            else:
-                reward += I.NOT_MOVING_FROM_BOMB_RANGE_PENALTY
+        if self.check_if_walking_out_of_bomb_range():
+            reward += I.MOVING_FROM_BOMB_RANGE_REWARD
+        else:
+            reward += I.NOT_MOVING_FROM_BOMB_RANGE_PENALTY
 
-            if self.check_if_waiting_beside_bomb_range(action):
-                reward += I.WAITING_BESIDE_BOMB_RANGE_REWARD
+        if self.check_if_waiting_beside_bomb_range(action):
+            reward += I.WAITING_BESIDE_BOMB_RANGE_REWARD
 
-            if has_dropped_bomb and self.check_if_own_bomb_to_hit_boxes(player_bomb):
-                reward += I.BOXES_IN_BOMB_RANGE_REWARD
+        if has_dropped_bomb and self.check_if_own_bomb_to_hit_boxes(player_bomb):
+            reward += I.BOXES_IN_BOMB_RANGE_REWARD
 
-            if self.check_if_walk_into_obj(action):
-                reward += I.TRYING_TO_ENTER_WALL_PENALTY
+        if self.check_if_walk_into_obj(action):
+            reward += I.TRYING_TO_ENTER_WALL_PENALTY
 
-            if self.check_if_trapped_with_bomb():
-                reward += I.TRAPPED_WITH_BOMB_PENALTY
+        if self.check_if_trapped_with_bomb():
+            reward += I.TRAPPED_WITH_BOMB_PENALTY
 
         if not self.player.life:
             reward += I.DEATH_PENALTY

@@ -6,6 +6,7 @@ import torch
 
 from torch import optim, nn
 from Transition import Transition
+from models.DQN_3D import DQN_3D
 from models.SimpleDQN import SimpleDQN
 # from PrioritizedReplayBuffer import PrioritizedReplayBuffer
 from ReplayBuffer import ReplayMemory
@@ -48,7 +49,7 @@ class DQN:
         self.update_target_model()
 
     def _build_model(self):
-        model = SimpleDQN(
+        model = DQN_3D(
             fcc_input_size=8 * 13 ** 2, num_actions=self.action_size
         ).to(self.device)
         return model
