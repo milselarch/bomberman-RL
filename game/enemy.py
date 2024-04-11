@@ -34,7 +34,7 @@ class Enemy(Actor):
     def is_player(self) -> bool:
         return False
 
-    def move(self, map, bombs, explosions, enemy):
+    def move(self, map, bombs, explosions):
         if self.direction == 0:
             self.pos_y += 1
         elif self.direction == 1:
@@ -48,9 +48,10 @@ class Enemy(Actor):
             self.movement_path.pop(0)
             self.path.pop(0)
             if len(self.path) > 1:
-                grid = self.create_grid(map, bombs, explosions, enemy)
-                next = self.path[1]
-                if grid[next[0]][next[1]] > 1:
+                grid = self.create_grid(map, bombs, explosions, [self])
+                next_coord = self.path[1]
+
+                if grid[next_coord[0]][next_coord[1]] > 1:
                     self.movement_path.clear()
                     self.path.clear()
 
@@ -59,25 +60,35 @@ class Enemy(Actor):
         else:
             self.frame += 1
 
-    def make_move(self, map, map_state, bombs, explosions, enemy):
+    @property
+    def grid_x(self) -> int:
+        return int(self.pos_x / Enemy.TILE_SIZE)
 
+    @property
+    def grid_y(self) -> int:
+        return int(self.pos_y / Enemy.TILE_SIZE)
+
+    def make_move(self, env_map, bombs, explosions, map_state=None):
         if not self.life:
             return
+
         if len(self.movement_path) == 0:
             if self.plant:
-                bombs.append(self.plant_bomb(map, map_state))
+                bombs.append(self.plant_bomb(env_map, map_state))
                 self.plant = False
-                map[int(self.pos_x / Enemy.TILE_SIZE)][int(self.pos_y / Enemy.TILE_SIZE)] = 3
+                env_map[self.grid_x][self.grid_y] = 3
             if self.algorithm is Algorithm.DFS:
-                self.dfs(self.create_grid(map, bombs, explosions, enemy))
+                self.dfs(self.create_grid(env_map, bombs, explosions, [self]))
             else:
-                self.dijkstra(self.create_grid_dijkstra(map, bombs, explosions, enemy))
+                self.dijkstra(self.create_grid_dijkstra(
+                    env_map, bombs, explosions, [self]
+                ))
 
         else:
             self.direction = self.movement_path[0]
-            self.move(map, bombs, explosions, enemy)
+            self.move(env_map, bombs, explosions)
 
-    def plant_bomb(self, map, map_state):
+    def plant_bomb(self, map, map_state=None):
         # b = Bomb(self.range, round(self.pos_x / Enemy.TILE_SIZE), round(self.pos_y / Enemy.TILE_SIZE), map, self)
         
         bGridX = round(self.pos_x / Enemy.TILE_SIZE)
@@ -86,7 +97,8 @@ class Enemy(Actor):
         
         self.bomb_limit -= 1
 
-        map_state[bGridX][bGridY] += 3
+        if map_state is not None:
+            map_state[bGridX][bGridY] += 3
 
         return b
 
@@ -249,7 +261,7 @@ class Enemy(Actor):
             open_list.remove(next_node)
             current = next_node
 
-    def create_grid(self, map, bombs, explosions, enemys):
+    def create_grid(self, map, bombs, explosions, enemies):
         grid = [[0] * len(map) for r in range(len(map))]
 
         # 0 - safe
@@ -274,7 +286,7 @@ class Enemy(Actor):
                 elif map[i][j] == 2:
                     grid[i][j] = 2
 
-        for x in enemys:
+        for x in enemies:
             if x == self:
                 continue
             elif not x.life:

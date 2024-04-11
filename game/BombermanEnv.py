@@ -652,7 +652,7 @@ class BombermanEnv(object):
 
         for enemy in self.enemy_list:
             enemy.make_move(
-                self.grid, self.bombs, self.explosions, self.enemy_blocks
+                self.grid, self.bombs, self.explosions
             )
 
         if self.player.life:
