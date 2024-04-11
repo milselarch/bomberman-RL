@@ -77,18 +77,32 @@ class DQN:
     def remember(self, state, action, reward, next_state, done):
         self.memory.push((state, action, reward, next_state, done))
 
-    def act(self, state, epsilon=None):
+    def act(self, state, illegal_actions=[], epsilon=None):
         if epsilon is None:
             epsilon = self.exploration_rate
         if np.random.rand() < epsilon:
-            return random.randrange(self.action_size)
+            actions = np.arange(self.action_size)
+            # MUST change to float as np.nan is float type
+            actions = actions.astype(float)
+            # Set illegal actions to NaN
+            actions[illegal_actions] = np.nan 
+            # '~' character is to filter out NaN elements
+            legal_actions = actions[~np.isnan(actions)]
+
+            # return random.randrange(self.action_size)
+            return int(random.choice(legal_actions))
 
         with tf.device(self.device):
             raw_prediction = np.array(
-                self.target_model.predict_on_batch(state)
+                self.target_model.predict_on_batch(state),
+                dtype=float
             )
 
-        return np.argmax(raw_prediction[0])
+        # Prevent illegal actions from being picked by setting them to NaN
+        raw_prediction[0][illegal_actions] = np.nan
+
+        # Return argmax ignoring NaNs.
+        return np.nanargmax(raw_prediction[0])
 
     def replay(self, episode_no: int = 0):
         if self.memory.length() < self.batch_size:

@@ -8,7 +8,7 @@ class Bomb:
         self.range = r
         self.pos_x = x
         self.pos_y = y
-        self.time = 7000 ########### TOO SHORT: 3000
+        self.time = 3000 # 7000 ########### TOO SHORT: 3000
         self.bomber: Actor = bomber
         self.sectors = []
         self.get_range(map)
