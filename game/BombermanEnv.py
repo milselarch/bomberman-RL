@@ -695,61 +695,6 @@ class BombermanEnv(object):
             )
 
         if self.player.life:
-            assign_action = False
-            self.current_player_direction = self.player.direction
-            self.player_moving = True
-
-            self.player_direction_x = 0
-            self.player_direction_y = 0
-            self.player_moving_action = action
-
-            if action == self.DOWN:
-                self.current_player_direction = 0
-                self.player_direction_x = 0
-                self.player_direction_y = 1
-            elif action == self.RIGHT:
-                self.current_player_direction = 1
-                self.player_direction_x = 1
-                self.player_direction_y = 0
-            elif action == self.UP:
-                self.current_player_direction = 2
-                self.player_direction_x = 0
-                self.player_direction_y = -1
-            elif action == self.LEFT:
-                self.current_player_direction = 3
-                self.player_direction_x = -1
-                self.player_direction_y = 0
-            elif action == self.WAIT or action == self.BOMB:
-                self.player_direction_x = 0
-                self.player_direction_y = 0
-                self.player_moving = False
-                self.player_moving_action = ''
-
-            # print('ACT', self.player_moving_action, [action])
-            if self.player_moving:
-                # Storing Destination Grid Coordinates in Grid
-                self.player_next_grid_pos_x = int(
-                    self.player.pos_x / Player.TILE_SIZE
-                ) + self.player_direction_x
-                self.player_next_grid_pos_y = int(
-                    self.player.pos_y / Player.TILE_SIZE
-                ) + self.player_direction_y
-
-                x = self.player_next_grid_pos_x
-                y = self.player_next_grid_pos_y
-                grid_val = self.grid[x][y]
-
-                if (grid_val == 1) or (grid_val == 2) or (grid_val == 3):
-                    # If Destination Grid is a Wall, Destructible Box
-                    # or Bomb, Reset Values to not Force Player to Move
-                    # in that Direction.
-                    self.player_direction_x = 0
-                    self.player_direction_y = 0
-                    self.player_next_grid_pos_x = None
-                    self.player_next_grid_pos_y = None
-                    self.player_moving = False
-                    self.player_moving_action = ''
-
             player_next_x = self.player_next_grid_pos_x
             player_next_y = self.player_next_grid_pos_y
             at_destination = (
@@ -760,7 +705,63 @@ class BombermanEnv(object):
                 self.player.pos_y % tile_size == 0
             )
 
-            if at_destination:
+            if not self.player_moving:
+                assign_action = False
+                self.current_player_direction = self.player.direction
+                self.player_moving = True
+
+                self.player_direction_x = 0
+                self.player_direction_y = 0
+                self.player_moving_action = action
+
+                if action == self.DOWN:
+                    self.current_player_direction = 0
+                    self.player_direction_x = 0
+                    self.player_direction_y = 1
+                elif action == self.RIGHT:
+                    self.current_player_direction = 1
+                    self.player_direction_x = 1
+                    self.player_direction_y = 0
+                elif action == self.UP:
+                    self.current_player_direction = 2
+                    self.player_direction_x = 0
+                    self.player_direction_y = -1
+                elif action == self.LEFT:
+                    self.current_player_direction = 3
+                    self.player_direction_x = -1
+                    self.player_direction_y = 0
+                elif action == self.WAIT or action == self.BOMB:
+                    self.player_direction_x = 0
+                    self.player_direction_y = 0
+                    self.player_moving = False
+                    self.player_moving_action = ''
+
+                # print('ACT', self.player_moving_action, [action])
+            
+                if self.player_moving:
+                    # Storing Destination Grid Coordinates in Grid
+                    self.player_next_grid_pos_x = int(
+                        self.player.pos_x / Player.TILE_SIZE
+                    ) + self.player_direction_x
+                    self.player_next_grid_pos_y = int(
+                        self.player.pos_y / Player.TILE_SIZE
+                    ) + self.player_direction_y
+
+                    x = self.player_next_grid_pos_x
+                    y = self.player_next_grid_pos_y
+                    grid_val = self.grid[x][y]
+
+                    if (grid_val == 1) or (grid_val == 2) or (grid_val == 3):
+                        # If Destination Grid is a Wall, Destructible Box
+                        # or Bomb, Reset Values to not Force Player to Move
+                        # in that Direction.
+                        self.player_direction_x = 0
+                        self.player_direction_y = 0
+                        self.player_next_grid_pos_x = None
+                        self.player_next_grid_pos_y = None
+                        self.player_moving = False
+                        self.player_moving_action = ''
+            elif at_destination:
                 # If current grid coordinates of player
                 # is same as destination grid coordinates,
                 # and position of player are multiples of Player.TILE_SIZE,
@@ -773,7 +774,8 @@ class BombermanEnv(object):
                 self.player_moving = False
                 self.player_moving_action = ''
 
-            if assign_action:
+                # time.sleep(0.5)
+            else:
                 action = self.player_moving_action
 
             # Move player
@@ -822,6 +824,7 @@ class BombermanEnv(object):
                 y = player_bomb.pos_y
 
                 self.grid[x][y] = GridValues.BOMB_GRID_VAL
+                self.grid_state[x][y] = GridValues.BOMB_GRID_VAL
                 self.player.bomb_limit -= 1
 
         I: Incentives = self.incentives
@@ -885,6 +888,7 @@ class BombermanEnv(object):
             self.clear_player_from_grid()
 
         self._score += reward
+
         return (
             self.get_normalised_state(), reward,
             self.is_game_ended(), self.player_moving
