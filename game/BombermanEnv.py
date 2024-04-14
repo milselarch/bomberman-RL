@@ -651,7 +651,6 @@ class BombermanEnv(object):
         illegal_actions = []
         
         if TrainingSettingsBools.IS_CHECKING_ILLEGAL_ACTION:
-
             player_pos_x = self.player.pos_x
             player_pos_y = self.player.pos_y
 
@@ -669,18 +668,14 @@ class BombermanEnv(object):
                 GridValues.ENEMY_GRID_VAL
             ]
 
-            if (top in obstacle_grid_values):
+            if top in obstacle_grid_values:
                 illegal_actions.append(self.action_space_idx_map[self.UP])
-
-            if (bottom in obstacle_grid_values):
-                illegal_actions.append(self.action_space_idx_map[self.DOWN]) 
-
-            if (left in obstacle_grid_values):
+            if bottom in obstacle_grid_values:
+                illegal_actions.append(self.action_space_idx_map[self.DOWN])
+            if left in obstacle_grid_values:
                 illegal_actions.append(self.action_space_idx_map[self.LEFT])
-
-            if (right in obstacle_grid_values):
+            if right in obstacle_grid_values:
                 illegal_actions.append(self.action_space_idx_map[self.RIGHT])
-
             if self.player.bomb_limit == 0:
                 illegal_actions.append(self.action_space_idx_map[self.BOMB])
 

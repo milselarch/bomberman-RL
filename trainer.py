@@ -104,7 +104,9 @@ class Trainer(object):
 
         # fill up memory before training starts
         while self.agent.memory.length() < self.episode_buffer_size:
-            action = self.agent.act(state, illegal_actions=self.env.get_illegal_actions())
+            action = self.agent.act(
+                state, illegal_actions=self.env.get_illegal_actions()
+            )
             next_state, reward, done, game_info = self.env.step(
                 self.env.action_space[action]
             )
@@ -133,7 +135,9 @@ class Trainer(object):
                     ##########################################
                     ''' Q-learning Model Picking of Action '''
                     ##########################################
-                    action = self.agent.act(state, illegal_actions=self.env.get_illegal_actions())
+                    action = self.agent.act(
+                        state, illegal_actions=self.env.get_illegal_actions()
+                    )
                     ##########################################
                     ##########################################
 
@@ -171,8 +175,11 @@ class Trainer(object):
                                     action = self.env.action_space_idx_map[self.env.BOMB]
                                     break
                             # else:
-                            # -- If you wish to not have a choice to wait, but that the AI would auto-wait if there is no input, 
-                            #     then uncomment the "else" line and comment out the "elif" line.
+                            # -- If you wish to not have a choice to wait,
+                            # but that the AI would auto-wait if there is
+                            # no input,
+                            #     then uncomment the "else" line and
+                            #     comment out the "elif" line.
                                 elif event.key == pygame.K_w:
                                     action = self.env.action_space_idx_map[self.env.WAIT]
                                     break
