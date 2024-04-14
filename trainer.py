@@ -17,9 +17,10 @@ from enums.algorithm import Algorithm
 from game.BombermanEnv import BombermanEnv
 from memory_profiler import profile as profile_memory
 from dqn import DQN
-
+from TrainingSettingsBools import TrainingSettingsBools
 
 class Trainer(object):
+
     def __init__(
         self, name='ddqn', incentives: Incentives = Incentives()
     ):
@@ -103,7 +104,7 @@ class Trainer(object):
 
         # fill up memory before training starts
         while self.agent.memory.length() < self.episode_buffer_size:
-            action = self.agent.act(state)
+            action = self.agent.act(state, illegal_actions=self.env.get_illegal_actions())
             next_state, reward, done, game_info = self.env.step(
                 self.env.action_space[action]
             )
@@ -125,7 +126,57 @@ class Trainer(object):
             step = 0
 
             while not done:
-                action = self.agent.act(state)
+                if not TrainingSettingsBools.IS_MANUAL_CONTROL:
+                    ##########################################
+                    ##########################################
+                    ''' Q-learning Model Picking of Action '''
+                    ##########################################
+                    action = self.agent.act(state, illegal_actions=self.env.get_illegal_actions())
+                    ##########################################
+                    ##########################################
+
+                elif TrainingSettingsBools.IS_MANUAL_CONTROL:
+                    ####################################################################################
+                    ####################################################################################
+                    ''' NOTE: DO NOT REMOVE
+                        NOTE: Use manual player game control ONLY to check if rewards are truly working 
+                            OR perhaps for pre-training before letting the model choose on its own.
+                            
+                            - Arrow keys to move 
+                            - 'Space' for bomb 
+                            - 'w' for wait
+                    '''
+                    ####################################################################################
+                    action = 5
+                    if not self.env.playerMoving:
+                        pygame.event.clear()
+                        while True:
+                            event = pygame.event.wait()
+                            if event.type == pygame.KEYDOWN:
+                                if event.key == pygame.K_UP:
+                                    action = self.env.actionSpaceIdxDict[self.env.UP]
+                                    break
+                                elif event.key == pygame.K_DOWN:
+                                    action = self.env.actionSpaceIdxDict[self.env.DOWN]
+                                    break
+                                elif event.key == pygame.K_LEFT:
+                                    action = self.env.actionSpaceIdxDict[self.env.LEFT]
+                                    break
+                                elif event.key == pygame.K_RIGHT:
+                                    action = self.env.actionSpaceIdxDict[self.env.RIGHT]
+                                    break
+                                elif event.key == pygame.K_SPACE:
+                                    action = self.env.actionSpaceIdxDict[self.env.BOMB]
+                                    break
+                            # else:
+                            # -- If you wish to not have a choice to wait, but that the AI would auto-wait if there is no input, 
+                            #     then uncomment the "else" line and comment out the "elif" line.
+                                elif event.key == pygame.K_w:
+                                    action = self.env.actionSpaceIdxDict[self.env.WAIT]
+                                    break
+                    ####################################################################################
+                    ####################################################################################
+
                 step_result = self.env.step(self.env.action_space[action])
                 next_state, reward, done, game_info = step_result
                 next_state = np.expand_dims(next_state, axis=0)
