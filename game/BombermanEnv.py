@@ -108,8 +108,9 @@ class BombermanEnv(object):
             self.UP, self.DOWN, self.LEFT, self.RIGHT,
             self.BOMB, self.WAIT
         ]
-
-        self.action_space_idx_map = {self.action_space[k]: k for k in range(len(self.action_space))}
+        self.action_space_idx_map = {
+            self.action_space[k]: k for k in range(len(self.action_space))
+        }
 
         self.action_space_size = len(self.action_space)
         self.actions_shape = (self.action_space_size,)

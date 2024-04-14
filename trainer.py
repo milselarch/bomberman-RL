@@ -15,9 +15,9 @@ from collections import deque
 from datetime import datetime as Datetime
 from enums.algorithm import Algorithm
 from game.BombermanEnv import BombermanEnv
-from memory_profiler import profile as profile_memory
-from dqn import DQN
 from TrainingSettingsBools import TrainingSettingsBools
+from dqn import DQN
+
 
 class Trainer(object):
 
@@ -126,6 +126,8 @@ class Trainer(object):
             step = 0
 
             while not done:
+                action = self.env.action_space_idx_map[self.env.WAIT]
+
                 if not TrainingSettingsBools.IS_MANUAL_CONTROL:
                     ##########################################
                     ##########################################
@@ -148,31 +150,31 @@ class Trainer(object):
                     '''
                     ####################################################################################
                     action = 5
-                    if not self.env.playerMoving:
+                    if not self.env.player_moving:
                         pygame.event.clear()
                         while True:
                             event = pygame.event.wait()
                             if event.type == pygame.KEYDOWN:
                                 if event.key == pygame.K_UP:
-                                    action = self.env.actionSpaceIdxDict[self.env.UP]
+                                    action = self.env.action_space_idx_map[self.env.UP]
                                     break
                                 elif event.key == pygame.K_DOWN:
-                                    action = self.env.actionSpaceIdxDict[self.env.DOWN]
+                                    action = self.env.action_space_idx_map[self.env.DOWN]
                                     break
                                 elif event.key == pygame.K_LEFT:
-                                    action = self.env.actionSpaceIdxDict[self.env.LEFT]
+                                    action = self.env.action_space_idx_map[self.env.LEFT]
                                     break
                                 elif event.key == pygame.K_RIGHT:
-                                    action = self.env.actionSpaceIdxDict[self.env.RIGHT]
+                                    action = self.env.action_space_idx_map[self.env.RIGHT]
                                     break
                                 elif event.key == pygame.K_SPACE:
-                                    action = self.env.actionSpaceIdxDict[self.env.BOMB]
+                                    action = self.env.action_space_idx_map[self.env.BOMB]
                                     break
                             # else:
                             # -- If you wish to not have a choice to wait, but that the AI would auto-wait if there is no input, 
                             #     then uncomment the "else" line and comment out the "elif" line.
                                 elif event.key == pygame.K_w:
-                                    action = self.env.actionSpaceIdxDict[self.env.WAIT]
+                                    action = self.env.action_space_idx_map[self.env.WAIT]
                                     break
                     ####################################################################################
                     ####################################################################################
