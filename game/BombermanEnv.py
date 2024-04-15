@@ -255,6 +255,7 @@ class BombermanEnv(object):
         self.FLAG_checkIfPlayerTrappedThemselves = False
         self.lifeDurationCounter = 0
         self.currentTargetEnemy = None
+        self.gridCoordIncentiveTick = 1
 
     def get_score(self) -> float:
         return self._score
@@ -342,10 +343,10 @@ class BombermanEnv(object):
         """ This is just generating destroyable boxes if I am not wrong. """
         ####################################################################
 
-        hardcoded = {(3, 4), (4, 3), (3, 1), (3, 7), (5, 4), (3, 10), (5, 1), (5, 7), (9, 5), (5, 10), (8, 3), (10, 6), (9, 8), (8, 6), (10, 3), (1, 6), (2, 5), (1, 3), (2, 8), (7, 4), (7, 1), (7, 7), (6, 8), (4, 2), (4, 5), (3, 3), (3, 9), (4, 8), (5, 9), (9, 1), (8, 5), (10, 2), (9, 4), (9, 10), (8, 8), (2, 4), (10, 5), (2, 7), (1, 5), (10, 8), (6, 1), (1, 8), (6, 4), (7, 9), (6, 7), (7, 6), (4, 1), (4, 7), (3, 5), (4, 4), (8, 4), (9, 9), (8, 7), (10, 4), (10, 1), (10, 7), (10, 10), (1, 7), (2, 6), (6, 6), (7, 5), (6, 3), (6, 9), (7, 8)}
+        # hardcoded = {(3, 7), (5, 4), (3, 10), (5, 7), (9, 5), (5, 10), (8, 3), (10, 6), (9, 8), (8, 6), (10, 3), (1, 6), (2, 5), (2, 8), (7, 4), (7, 1), (7, 7), (6, 8), (4, 5), (3, 9), (4, 8), (5, 9), (9, 1), (8, 5), (10, 2), (9, 4), (9, 10), (8, 8), (10, 5), (2, 7), (10, 8), (6, 1), (1, 8), (6, 4), (7, 9), (6, 7), (7, 6), (4, 7), (4, 4), (8, 4), (9, 9), (8, 7), (10, 4), (10, 1), (10, 7), (10, 10), (1, 7), (2, 6), (6, 6), (7, 5), (6, 3), (6, 9), (7, 8)}
 
-        for x,y in hardcoded:
-            self.grid[x][y] = GridValues.BOX_GRID_VAL
+        # for x,y in hardcoded:
+        #     self.grid[x][y] = GridValues.BOX_GRID_VAL
 
         # for i in range(1, len(self.grid) - 1):
         #     for j in range(1, len(self.grid[i]) - 1):
@@ -718,14 +719,14 @@ class BombermanEnv(object):
         aStarDistance = len(aStarPath)
         # if aStarDistance == 0:
         #     aStarDistance = 0.1
-        return (G * entity1Mass * entity2Mass) / (aStarDistance)
+        return (G * entity1Mass * entity2Mass) / (aStarDistance**2)
 
     def manhattanGravity(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
         G = 100
         manhattan = manhattanDistance(entity1GridCoords, entity2GridCoords)
         if manhattan == 0:
             manhattan = 0.1
-        return (G * entity1Mass * entity2Mass) / (manhattan)
+        return (G * entity1Mass * entity2Mass) / (manhattan**2)
 
     def getGridCoordIncentiveDict(self):
         res = {
@@ -759,7 +760,7 @@ class BombermanEnv(object):
         for bomb in self.bombs:
             bombCoords = bomb.getGridCoords()
             timeElapsed = bomb.time - bomb.time_waited
-            res["bomb_gravity"] += self.manhattanGravity(1, -0.001*abs(timeElapsed), bombCoords, (coords[0], coords[1]))
+            res["bomb_gravity"] += self.manhattanGravity(1, 0.1*abs(timeElapsed), bombCoords, (coords[0], coords[1]))
         return res
 
     def getGridStateAsSectors(self):
@@ -1014,7 +1015,7 @@ class BombermanEnv(object):
                         return True
 
         return False
-    
+
     def check_if_waiting_beside_explosion(self, action):
         # This is specifically for Explosion class objects, not Bomb class objects
         grid_x = int(self.player.pos_x / Player.TILE_SIZE)
@@ -1126,7 +1127,7 @@ class BombermanEnv(object):
 
     def get_illegal_actions(self):
         illegal_actions = []
-        
+
         if TrainingSettings.IS_CHECKING_ILLEGAL_ACTION:
 
             player_pos_x = self.player.pos_x
@@ -1366,17 +1367,19 @@ class BombermanEnv(object):
 
         self.lifeDurationCounter += 1
 
-        # if self.player_moving:
-        gcid = self.getGridCoordIncentiveDict()
-        print(gcid)
-        reward += gcid["box_gravity"] * I.BOX_GRAVITY
-        reward += gcid["enemy_gravity"] * I.ENEMY_GRAVITY
-        reward += gcid["target_enemy_gravity"] * I.TARGET_ENEMY_GRAVITY
-        reward += gcid["bomb_gravity"] * I.BOMB_GRAVITY
+        if self.gridCoordIncentiveTick == 0:
+            gcid = self.getGridCoordIncentiveDict()
+            print(gcid)
+            reward += gcid["box_gravity"] * I.BOX_GRAVITY
+            reward += gcid["enemy_gravity"] * I.ENEMY_GRAVITY
+            reward += gcid["target_enemy_gravity"] * I.TARGET_ENEMY_GRAVITY
+            reward += gcid["bomb_gravity"] * I.BOMB_GRAVITY
+            self.gridCoordIncentiveTick = 1
+        else:
+            self.gridCoordIncentiveTick -= 1
 
         self.currentTargetEnemy = self.targetEnemy()
-        if self.currentTargetEnemy is not None:
-            print("target", self.currentTargetEnemy.getGridCoords())
+
         if action == self.BOMB and has_dropped_bomb:
             if self.check_if_put_bomb_have_escape():
                 reward += I.PUT_BOMB_HAVE_ESCAPE_ROUTE_REWARD
@@ -1402,7 +1405,7 @@ class BombermanEnv(object):
         if not self.player_in_bomb_range and self.check_if_waiting_beside_explosion(action):
             # This is specifically for Explosion class objects, not Bomb class objects
             reward += I.WAITING_BESIDE_EXPLOSION_REWARD
-            
+
         if has_dropped_bomb and self.check_if_own_bomb_to_hit_boxes(player_bomb):
             reward += I.BOXES_IN_BOMB_RANGE_REWARD
 
@@ -1421,7 +1424,7 @@ class BombermanEnv(object):
             self.clear_player_from_grid()
 
         self._score += reward
-
+        print(reward)
         return (
             self.get_normalised_state(), reward,
             self.is_game_ended(), self.player_moving
