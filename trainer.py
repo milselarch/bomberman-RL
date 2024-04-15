@@ -1,6 +1,5 @@
 import os
-
-from Transition import Transition
+from typing import Optional
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
@@ -11,13 +10,14 @@ import tensorflow as tf
 
 from tqdm import tqdm
 from game.Incentives import Incentives
+from Transition import Transition
 from collections import deque
 from datetime import datetime as Datetime
 from enums.algorithm import Algorithm
 from game.BombermanEnv import BombermanEnv
-from memory_profiler import profile as profile_memory
 from dqn import DQN
-from TrainingSettingsBools import TrainingSettingsBools
+from TrainingSettings import TrainingSettingsBools
+
 
 class Trainer(object):
 
@@ -27,7 +27,7 @@ class Trainer(object):
         self.name = name
         self.incentives = incentives
 
-        self.learning_rate = 0.01
+        self.learning_rate = 0.001
         self.exploration_decay = 0.9995  # 0.95
         self.exploration_max = 0.2
         self.exploration_min = 0.001  # 0.01
@@ -35,6 +35,7 @@ class Trainer(object):
         self.update_target_every = 100
         self.episode_buffer_size = 256
         self.episodes = 50 * 1000
+        self.pool_duration = 4
 
         self.logs_dir = 'logs'
         self.models_save_dir = 'saves'
@@ -95,6 +96,49 @@ class Trainer(object):
         self.t_logs_writer = tf.summary.create_file_writer(train_path)
         self.v_logs_writer = tf.summary.create_file_writer(valid_path)
 
+    def get_manual_action_no(self) -> int:
+        ####################################################################################
+        ####################################################################################
+        ''' NOTE: DO NOT REMOVE
+            NOTE: Use manual player game control ONLY to check if rewards are truly working
+                OR perhaps for pre-training before letting the model choose on its own.
+
+                - Arrow keys to move
+                - 'Space' for bomb
+                - 'w' for wait
+        '''
+        ####################################################################################
+        action_no = 5
+        pygame.event.clear()
+
+        while True:
+            event = pygame.event.wait()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    action_no = self.env.action_space_idx_map[self.env.UP]
+                    break
+                elif event.key == pygame.K_DOWN:
+                    action_no = self.env.action_space_idx_map[self.env.DOWN]
+                    break
+                elif event.key == pygame.K_LEFT:
+                    action_no = self.env.action_space_idx_map[self.env.LEFT]
+                    break
+                elif event.key == pygame.K_RIGHT:
+                    action_no = self.env.action_space_idx_map[self.env.RIGHT]
+                    break
+                elif event.key == pygame.K_SPACE:
+                    action_no = self.env.action_space_idx_map[self.env.BOMB]
+                    break
+                # else:
+                # -- If you wish to not have a choice to wait, but
+                # that the AI would auto-wait if there is no input,
+                #     then uncomment the "else" line and comment out the "elif" line.
+                elif event.key == pygame.K_w:
+                    action_no = self.env.action_space_idx_map[self.env.WAIT]
+                    break
+
+        return action_no
+
     def train(self):
         state = self.env.reset()
         state = np.expand_dims(state, axis=0)
@@ -102,21 +146,23 @@ class Trainer(object):
         best_score = -float('inf')
         ma_score = 0
 
+        # self.env.simulate_time = True
         # fill up memory before training starts
         while self.agent.memory.length() < self.episode_buffer_size:
-            action = self.agent.act(state, illegal_actions=self.env.get_illegal_actions())
+            action_no = self.agent.act(state, illegal_actions=self.env.get_illegal_actions())
             next_state, reward, done, game_info = self.env.step(
-                self.env.action_space[action]
+                self.env.action_space[action_no]
             )
 
             # Change state shape from (Height, Width) to (Height, Width, 1)
             next_state = np.expand_dims(next_state, axis=0)
             self.agent.remember(Transition(
-                state=state, action=action, reward=reward,
+                state=state, action=action_no, reward=reward,
                 next_state=next_state, done=done
             ))
             state = next_state
 
+        # self.env.simulate_time = False
         pbar = tqdm(range(self.episodes))
 
         for e in pbar:
@@ -125,66 +171,59 @@ class Trainer(object):
             done = False
             step = 0
 
+            pooled_rewards = 0
+            last_pooled_step = 0
+            last_action_no = None
+            pooled_transition: Optional[Transition] = None
+
             while not done:
                 if not TrainingSettingsBools.IS_MANUAL_CONTROL:
-                    ##########################################
-                    ##########################################
-                    ''' Q-learning Model Picking of Action '''
-                    ##########################################
-                    action = self.agent.act(state, illegal_actions=self.env.get_illegal_actions())
-                    ##########################################
-                    ##########################################
+                    # Q-learning Model Picking of Action
+                    if pooled_transition is None:
+                        # continue with previous movement
+                        action_no = self.agent.act(
+                            state, illegal_actions=self.env.get_illegal_actions()
+                        )
+                        # print('ACT', self.env.to_action(action_no))
+                    else:
+                        action_no = last_action_no
+                        # print('WAIT', self.env.to_action(action_no))
+                else:
+                    assert TrainingSettingsBools.IS_MANUAL_CONTROL
+                    action_no = self.get_manual_action_no()
 
-                elif TrainingSettingsBools.IS_MANUAL_CONTROL:
-                    ####################################################################################
-                    ####################################################################################
-                    ''' NOTE: DO NOT REMOVE
-                        NOTE: Use manual player game control ONLY to check if rewards are truly working 
-                            OR perhaps for pre-training before letting the model choose on its own.
-                            
-                            - Arrow keys to move 
-                            - 'Space' for bomb 
-                            - 'w' for wait
-                    '''
-                    ####################################################################################
-                    action = 5
-                    if not self.env.playerMoving:
-                        pygame.event.clear()
-                        while True:
-                            event = pygame.event.wait()
-                            if event.type == pygame.KEYDOWN:
-                                if event.key == pygame.K_UP:
-                                    action = self.env.actionSpaceIdxDict[self.env.UP]
-                                    break
-                                elif event.key == pygame.K_DOWN:
-                                    action = self.env.actionSpaceIdxDict[self.env.DOWN]
-                                    break
-                                elif event.key == pygame.K_LEFT:
-                                    action = self.env.actionSpaceIdxDict[self.env.LEFT]
-                                    break
-                                elif event.key == pygame.K_RIGHT:
-                                    action = self.env.actionSpaceIdxDict[self.env.RIGHT]
-                                    break
-                                elif event.key == pygame.K_SPACE:
-                                    action = self.env.actionSpaceIdxDict[self.env.BOMB]
-                                    break
-                            # else:
-                            # -- If you wish to not have a choice to wait, but that the AI would auto-wait if there is no input, 
-                            #     then uncomment the "else" line and comment out the "elif" line.
-                                elif event.key == pygame.K_w:
-                                    action = self.env.actionSpaceIdxDict[self.env.WAIT]
-                                    break
-                    ####################################################################################
-                    ####################################################################################
-
-                step_result = self.env.step(self.env.action_space[action])
+                action = self.env.to_action(action_no)
+                step_result = self.env.step(action)
                 next_state, reward, done, game_info = step_result
                 next_state = np.expand_dims(next_state, axis=0)
-                self.agent.remember(Transition(
-                    state=state, action=action, reward=reward,
-                    next_state=next_state, done=done
-                ))
 
+                transition = Transition(
+                    state=state, action=action_no, reward=reward,
+                    next_state=next_state, done=done
+                )
+
+                if TrainingSettingsBools.POOL_TRANSITIONS:
+                    flush = done or (action_no == self.env.BOMB)
+                    if flush:
+                        self.agent.remember(transition)
+
+                    if pooled_transition is not None:
+                        pooled_rewards += reward
+                        time_passed = step - last_pooled_step
+
+                        if flush or (time_passed >= self.pool_duration):
+                            pooled_transition.next_state = state
+                            pooled_transition.reward = pooled_rewards
+                            self.agent.remember(pooled_transition)
+                            pooled_transition = None
+                    else:
+                        pooled_rewards = reward
+                        pooled_transition = transition
+                        last_pooled_step = step
+                else:
+                    self.agent.remember(transition)
+
+                last_action_no = action_no
                 state = next_state
                 step += 1
 

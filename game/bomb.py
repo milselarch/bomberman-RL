@@ -1,3 +1,5 @@
+from typing import List, Tuple
+
 from game.Actor import Actor
 
 
@@ -5,14 +7,14 @@ class Bomb:
     WAIT_DURATION = 3000
     frame = 0
 
-    def __init__(self, r, x, y, map, bomber: Actor):
+    def __init__(self, r: int, x: int, y: int, grid_map, bomber: Actor):
         self.range = r
         self.pos_x = x
         self.pos_y = y
         self.time = self.WAIT_DURATION
         self.bomber: Actor = bomber
         self.sectors = []
-        self.get_range(map)
+        self.get_range(grid_map)
 
     @property
     def time_waited(self):
@@ -28,7 +30,6 @@ class Bomb:
             self.frame = 1
 
     def get_range(self, map):
-
         self.sectors.append([self.pos_x, self.pos_y])
 
         for x in range(1, self.range):

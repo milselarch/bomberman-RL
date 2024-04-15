@@ -48,7 +48,7 @@ class PrioritizedReplayBuffer:
 
         self.beta = np.min([1., self.beta + self.beta_increment])
         batch = TransitionsBatch.build(experiences)
-        return batch, indices, weights
+        return batch
 
     def update_priorities(self, indices, errors):
         for idx, error in zip(indices, errors):
