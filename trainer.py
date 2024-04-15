@@ -16,7 +16,7 @@ from datetime import datetime as Datetime
 from enums.algorithm import Algorithm
 from game.BombermanEnv import BombermanEnv
 from dqn import DQN
-from TrainingSettings import TrainingSettingsBools
+from TrainingSettings import TrainingSettings
 
 
 class Trainer(object):
@@ -177,7 +177,7 @@ class Trainer(object):
             pooled_transition: Optional[Transition] = None
 
             while not done:
-                if not TrainingSettingsBools.IS_MANUAL_CONTROL:
+                if not TrainingSettings.IS_MANUAL_CONTROL:
                     # Q-learning Model Picking of Action
                     if pooled_transition is None:
                         # continue with previous movement
@@ -189,7 +189,7 @@ class Trainer(object):
                         action_no = last_action_no
                         # print('WAIT', self.env.to_action(action_no))
                 else:
-                    assert TrainingSettingsBools.IS_MANUAL_CONTROL
+                    assert TrainingSettings.IS_MANUAL_CONTROL
                     action_no = self.get_manual_action_no()
 
                 action = self.env.to_action(action_no)
@@ -202,7 +202,7 @@ class Trainer(object):
                     next_state=next_state, done=done
                 )
 
-                if TrainingSettingsBools.POOL_TRANSITIONS:
+                if TrainingSettings.POOL_TRANSITIONS:
                     flush = done or (action_no == self.env.BOMB)
                     if flush:
                         self.agent.remember(transition)
