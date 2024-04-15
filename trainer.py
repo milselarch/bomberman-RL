@@ -18,6 +18,7 @@ from game.BombermanEnv import BombermanEnv
 from dqn import DQN
 from TrainingSettingsBools import TrainingSettingsBools
 
+
 class Trainer(object):
 
     def __init__(
@@ -146,8 +147,7 @@ class Trainer(object):
                         action_no = last_action_no
                         # print('WAIT', self.env.to_action(action_no))
 
-                    action_no = self.env.to_action(action_no)
-                    step_result = self.env.step(self.env.action_space[action_no])
+                    # action = self.env.to_action(action_no)
                     ##########################################
                     ##########################################
 
@@ -168,6 +168,7 @@ class Trainer(object):
 
                     if not self.env.player_moving:
                         pygame.event.clear()
+
                         while True:
                             event = pygame.event.wait()
                             if event.type == pygame.KEYDOWN:
@@ -187,15 +188,18 @@ class Trainer(object):
                                     action_no = self.env.action_space_idx_map[self.env.BOMB]
                                     break
                             # else:
-                            # -- If you wish to not have a choice to wait, but that the AI would auto-wait if there is no input, 
+                            # -- If you wish to not have a choice to wait, but
+                            # that the AI would auto-wait if there is no input,
                             #     then uncomment the "else" line and comment out the "elif" line.
                                 elif event.key == pygame.K_w:
                                     action_no = self.env.action_space_idx_map[self.env.WAIT]
                                     break
+
                     ####################################################################################
                     ####################################################################################
 
-                step_result = self.env.step(self.env.action_space[action_no])
+                action = self.env.to_action(action_no)
+                step_result = self.env.step(action)
                 next_state, reward, done, game_info = step_result
                 next_state = np.expand_dims(next_state, axis=0)
 

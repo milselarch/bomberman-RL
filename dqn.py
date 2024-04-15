@@ -60,9 +60,12 @@ class DQN:
     def remember(self, transition: Transition):
         self.memory.push(transition)
 
-    def act(self, state, illegal_actions=[], epsilon=None) -> int:
+    def act(self, state, illegal_actions=None, epsilon=None) -> int:
         if epsilon is None:
             epsilon = self.exploration_rate
+        if illegal_actions is None:
+            illegal_actions = []
+
         if np.random.rand() < epsilon:
             actions = np.arange(self.action_size)
             # MUST change to float as np.nan is float type
@@ -74,7 +77,6 @@ class DQN:
 
             # return random.randrange(self.action_size)
             return int(random.choice(legal_actions))
-
 
         state = torch.tensor(state).to(self.device)
         with torch.no_grad():
