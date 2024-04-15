@@ -30,6 +30,22 @@ GRID_BASE_LIST = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ]
 
+GRID_BASE_LIST_PRESET_BOXES = [
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 2, 2, 0, 0, 2, 2, 2, 0, 0, 1],
+    [1, 0, 1, 2, 1, 2, 1, 2, 1, 2, 1, 0, 1],
+    [1, 2, 0, 2, 0, 2, 0, 2, 2, 2, 2, 2, 1],
+    [1, 0, 1, 0, 1, 2, 1, 0, 1, 0, 1, 2, 1],
+    [1, 2, 2, 2, 2, 2, 0, 2, 0, 2, 2, 2, 1],
+    [1, 2, 1, 0, 1, 0, 1, 2, 1, 2, 1, 2, 1],
+    [1, 2, 0, 2, 0, 2, 2, 0, 2, 2, 2, 0, 1],
+    [1, 2, 1, 2, 1, 0, 1, 2, 1, 0, 1, 2, 1],
+    [1, 2, 0, 2, 0, 2, 2, 2, 2, 2, 2, 2, 1],
+    [1, 0, 1, 2, 1, 2, 1, 0, 1, 2, 1, 0, 1],
+    [1, 0, 0, 2, 2, 2, 0, 2, 2, 2, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+]
+
 GRID_BASE = np.array(GRID_BASE_LIST)
 
 
@@ -314,6 +330,9 @@ class BombermanEnv(object):
                 if random.randint(0, 9) < 7:
                     self.grid[i][j] = GridValues.BOX_GRID_VAL
                     pass
+
+        if TrainingSettingsBools.IS_PRESET_GRID:
+            self.grid = np.array(GRID_BASE_LIST_PRESET_BOXES)
 
         return
 
