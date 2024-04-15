@@ -15,29 +15,30 @@ from collections import deque
 from datetime import datetime as Datetime
 from enums.algorithm import Algorithm
 from game.BombermanEnv import BombermanEnv
-from dqn import DQN
 from TrainingSettings import TrainingSettings
+from dqn import DQN
 
 
 class Trainer(object):
 
     def __init__(
         self, name='ddqn', incentives: Incentives = Incentives(),
-        verbose=False
+        training_settings: TrainingSettings = TrainingSettings(),
     ):
         self.name = name
         self.incentives = incentives
+        self.training_settings = training_settings
 
-        self.learning_rate = 0.001
-        self.exploration_decay = 0.9995  # 0.95
-        self.exploration_max = 0.2
-        self.exploration_min = 0.001  # 0.01
-        self.gamma = 0.9  # 0.975
-        self.update_target_every = 10
-        self.episode_buffer_size = 256
-        self.episodes = 50 * 1000
-        self.pool_duration = 4
-        self.verbose = verbose
+        self.learning_rate = training_settings.learning_rate
+        self.exploration_decay = training_settings.exploration_decay
+        self.exploration_max = training_settings.exploration_max
+        self.exploration_min = training_settings.exploration_min
+        self.gamma = training_settings.gamma
+        self.update_target_every = training_settings.update_target_every
+        self.episode_buffer_size = training_settings.episode_buffer_size
+        self.episodes = training_settings.episodes
+        self.pool_duration = training_settings.pool_duration
+        self.verbose = training_settings.verbose
 
         self.logs_dir = 'logs'
         self.models_save_dir = 'saves'
@@ -66,7 +67,7 @@ class Trainer(object):
             self.en1_alg, self.en2_alg, self.en3_alg,
             self.tile_size, incentives=incentives,
             simulate_time=True, physics_fps=15,
-            render_fps=15
+            render_fps=15, training_settings=self.training_settings
         )
 
         self.agent = DQN(
@@ -190,7 +191,7 @@ class Trainer(object):
             while not done:
                 q_values = None
 
-                if not TrainingSettings.IS_MANUAL_CONTROL:
+                if not self.training_settings.IS_MANUAL_CONTROL:
                     # Q-learning Model Picking of Action
                     if pooled_transition is None:
                         # continue with previous movement
@@ -204,7 +205,7 @@ class Trainer(object):
                         action_no = last_action_no
                         self.log('REPEAT', self.env.to_action(action_no))
                 else:
-                    assert TrainingSettings.IS_MANUAL_CONTROL
+                    assert self.training_settings.IS_MANUAL_CONTROL
                     action_no = self.get_manual_action_no()
 
                 action = self.env.to_action(action_no)
@@ -221,7 +222,7 @@ class Trainer(object):
                     q_values=q_values
                 )
 
-                if TrainingSettings.POOL_TRANSITIONS:
+                if self.training_settings.POOL_TRANSITIONS:
                     flush = done or (action_no == self.env.BOMB)
                     if flush:
                         self.agent.remember(transition)

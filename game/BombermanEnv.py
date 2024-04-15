@@ -64,7 +64,8 @@ class BombermanEnv(object):
         self, surface, path, player_alg, en1_alg, en2_alg,
         en3_alg, scale, physics_fps: int = 15, render_fps: int = 15,
         simulate_time: bool = False, incentives: Incentives = Incentives(),
-        max_steps: int = 3000
+        max_steps: int = 3000,
+        training_settings: TrainingSettings = TrainingSettings()
     ):
         """
         :param surface:
@@ -86,6 +87,7 @@ class BombermanEnv(object):
         self.physics_fps = physics_fps
         self.render_fps = render_fps
         self.simulate_time = simulate_time
+        self.training_settings = training_settings
         self.max_steps = max_steps
 
         # cumulative sum of rewards recieved throughout the game
@@ -348,7 +350,7 @@ class BombermanEnv(object):
                     self.grid[i][j] = GridValues.BOX_GRID_VAL
                     pass
 
-        if TrainingSettings.IS_PRESET_GRID:
+        if self.training_settings.IS_PRESET_GRID:
             self.grid = np.array(GRID_BASE_LIST_PRESET_BOXES)
 
         return
@@ -735,8 +737,7 @@ class BombermanEnv(object):
     def get_illegal_actions(self):
         illegal_actions = []
         
-        if TrainingSettings.IS_CHECKING_ILLEGAL_ACTION:
-
+        if self.training_settings.IS_CHECKING_ILLEGAL_ACTION:
             player_pos_x = self.player.pos_x
             player_pos_y = self.player.pos_y
 
