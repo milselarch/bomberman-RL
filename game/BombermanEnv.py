@@ -727,6 +727,15 @@ class BombermanEnv(object):
                     res.append((x,y))
         return res
 
+    def aStarPowerDistance(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
+        G = 1.5
+        aStarPath = self.aStar(entity1GridCoords, entity2GridCoords)
+        if not aStarPath:
+            return 0
+
+        aStarDistance = len(aStarPath)
+        return (G**(aStarDistance))
+
     def aStarSigmoid(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
         G = 1
         aStarPath = self.aStar(entity1GridCoords, entity2GridCoords)
@@ -747,6 +756,13 @@ class BombermanEnv(object):
         # if aStarDistance == 0:
         #     aStarDistance = 0.1
         return (G * entity1Mass * entity2Mass) / (aStarDistance**2)
+
+    def manhattanPowerDistance(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
+        G = 1.5
+        manhattan = manhattanDistance(entity1GridCoords, entity2GridCoords)
+        if manhattan == 0:
+            manhattan = 0.1
+        return (G**(manhattan))
 
     def manhattanSigmoid(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
         G = 100
@@ -774,15 +790,15 @@ class BombermanEnv(object):
         boxGridCoords = self.getGridCoordsContainingValue({GridValues.BOX_GRID_VAL})
         # print("boxes", boxGridCoords)
         for box in boxGridCoords:
-            res["box_gravity"] += self.aStarSigmoid(1, 1, box, coords)
+            res["box_gravity"] += self.aStarPowerDistance(1, 1, box, coords)
 
         enemyGridCoords = self.getGridCoordsContainingValue({GridValues.ENEMY_GRID_VAL})
         # print("enemies", enemyGridCoords)
         for enemy in enemyGridCoords:
-            res["enemy_gravity"] += self.aStarSigmoid(1, 5, enemy, (coords[0], coords[1]))
+            res["enemy_gravity"] += self.aStarPowerDistance(1, 5, enemy, (coords[0], coords[1]))
 
         if self.currentTargetEnemy is not None:
-            res ["target_enemy_gravity"] += self.manhattanSigmoid(
+            res ["target_enemy_gravity"] += self.manhattanPowerDistance(
                 1,
                 10,
                 self.player.getGridCoords(),
@@ -794,7 +810,7 @@ class BombermanEnv(object):
         for bomb in self.bombs:
             bombCoords = bomb.getGridCoords()
             timeElapsed = bomb.time - bomb.time_waited
-            res["bomb_gravity"] += self.manhattanSigmoid(1, 10, bombCoords, (coords[0], coords[1]))
+            res["bomb_gravity"] += self.manhattanPowerDistance(1, 10, bombCoords, (coords[0], coords[1]))
         return res
 
     def getGridStateAsSectors(self):
