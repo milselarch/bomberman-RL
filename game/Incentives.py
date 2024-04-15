@@ -23,3 +23,5 @@ class Incentives(object):
 
     TRAPPED_THEMSELVES_GUARANTEED_DEATH: float = 0
     STAY_ALIVE: float = 0
+
+    BOX_GRAVITY: float = 0

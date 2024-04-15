@@ -600,11 +600,14 @@ class BombermanEnv(object):
         return (G * entity1Mass * entity2Mass) / (aStarDistance)
 
     def getGridCoordIncentiveDict(self):
+        res = 0
         boxGridCoords = self.getGridCoordsContainingValue({GridValues.BOX_GRID_VAL})
-
+        for box in boxGridCoords:
+            res += self.gravity(1, 1, box, self.player.getGridCoords())
         """
         [0, 0, 1, 0, 0]
         """
+        return res
 
     def getGridStateAsSectors(self):
         return {[x, y] for x in range(self.grid_width) for y in range(self.grid_height)}
@@ -619,7 +622,9 @@ class BombermanEnv(object):
         indestructibleSectors = self.getGridCoordsContainingValue(
             {GridValues.WALL_GRID_VAL}
         )
-        if start in indestructibleSectors or goal in indestructibleSectors:
+        print(goal)
+        print(goal, indestructibleSectors, goal in indestructibleSectors)
+        if (start in indestructibleSectors) or (goal in indestructibleSectors):
             return None
 
         notIndestructibleSectors = self.getGridStateAsSectors().difference(
@@ -1132,6 +1137,11 @@ class BombermanEnv(object):
                 self.FLAG_checkIfPlayerTrappedThemselves = True
 
         self.lifeDurationCounter += 1
+
+        if self.player_moving:
+            bg = self.getGridCoordIncentiveDict()
+            print(bg)
+            reward += bg * I.BOX_GRAVITY
 
         if self.check_if_in_bomb_range():
             reward += I.IN_BOMB_RANGE_PENALTY
