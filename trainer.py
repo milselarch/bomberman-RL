@@ -1,6 +1,5 @@
 import os
-
-from Transition import Transition
+from typing import Optional
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
@@ -11,11 +10,11 @@ import tensorflow as tf
 
 from tqdm import tqdm
 from game.Incentives import Incentives
+from Transition import Transition
 from collections import deque
 from datetime import datetime as Datetime
 from enums.algorithm import Algorithm
 from game.BombermanEnv import BombermanEnv
-from memory_profiler import profile as profile_memory
 from dqn import DQN
 
 
@@ -28,12 +27,13 @@ class Trainer(object):
 
         self.learning_rate = 0.001
         self.exploration_decay = 0.9995  # 0.95
-        self.exploration_max = 0.5
+        self.exploration_max = 0.2
         self.exploration_min = 0.001  # 0.01
         self.gamma = 0.99  # 0.975
         self.update_target_every = 100
         self.episode_buffer_size = 256
         self.episodes = 50 * 1000
+        self.pool_duration = 4
 
         self.logs_dir = 'logs'
         self.models_save_dir = 'saves'
@@ -101,21 +101,23 @@ class Trainer(object):
         best_score = -float('inf')
         ma_score = 0
 
+        # self.env.simulate_time = True
         # fill up memory before training starts
         while self.agent.memory.length() < self.episode_buffer_size:
-            action = self.agent.act(state)
+            action_no = self.agent.act(state)
             next_state, reward, done, game_info = self.env.step(
-                self.env.action_space[action]
+                self.env.action_space[action_no]
             )
 
             # Change state shape from (Height, Width) to (Height, Width, 1)
             next_state = np.expand_dims(next_state, axis=0)
             self.agent.remember(Transition(
-                state=state, action=action, reward=reward,
+                state=state, action=action_no, reward=reward,
                 next_state=next_state, done=done
             ))
             state = next_state
 
+        # self.env.simulate_time = False
         pbar = tqdm(range(self.episodes))
 
         for e in pbar:
@@ -124,16 +126,49 @@ class Trainer(object):
             done = False
             step = 0
 
+            pooled_rewards = 0
+            last_pooled_step = 0
+            last_action_no = None
+            pooled_transition: Optional[Transition] = None
+
             while not done:
-                action = self.agent.act(state)
-                step_result = self.env.step(self.env.action_space[action])
+                if pooled_transition is None:
+                    # continue with previous movement
+                    action_no = self.agent.act(state)
+                    # print('ACT', self.env.to_action(action_no))
+                else:
+                    action_no = last_action_no
+                    # print('WAIT', self.env.to_action(action_no))
+
+                action = self.env.to_action(action_no)
+                step_result = self.env.step(self.env.action_space[action_no])
                 next_state, reward, done, game_info = step_result
                 next_state = np.expand_dims(next_state, axis=0)
-                self.agent.remember(Transition(
-                    state=state, action=action, reward=reward,
-                    next_state=next_state, done=done
-                ))
 
+                transition = Transition(
+                    state=state, action=action_no, reward=reward,
+                    next_state=next_state, done=done
+                )
+
+                flush = done or (action == self.env.BOMB)
+                if flush:
+                    self.agent.remember(transition)
+
+                if pooled_transition is not None:
+                    pooled_rewards += reward
+                    time_passed = step - last_pooled_step
+
+                    if flush or (time_passed >= self.pool_duration):
+                        pooled_transition.next_state = state
+                        pooled_transition.reward = pooled_rewards
+                        self.agent.remember(pooled_transition)
+                        pooled_transition = None
+                else:
+                    pooled_rewards = reward
+                    pooled_transition = transition
+                    last_pooled_step = step
+
+                last_action_no = action_no
                 state = next_state
                 step += 1
 

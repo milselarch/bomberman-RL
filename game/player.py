@@ -51,7 +51,7 @@ class Player(Actor):
             elif not x.life:
                 continue
             else:
-                map[int(x.pos_x / Player.TILE_SIZE)][int(x.pos_y / Player.TILE_SIZE)] = 2
+                map[self.grid_x][self.grid_y] = 2
 
         if self.pos_x % Player.TILE_SIZE != 0 and dx == 0:
             if self.pos_x % Player.TILE_SIZE == 1:

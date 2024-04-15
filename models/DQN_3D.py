@@ -33,7 +33,7 @@ class DQN_3D(nn.Module):
 
         # Fully connected layers to output action Q-values
         self.fc_layers = nn.Sequential(
-            nn.Linear(2904, 256),
+            nn.Linear(3872, 256),
             nn.ReLU(),
             # Output action Q-values for 6 actions
             nn.Linear(256, self.num_actions)
