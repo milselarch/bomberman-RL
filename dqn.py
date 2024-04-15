@@ -8,7 +8,7 @@ from torch import optim, nn
 from Transition import Transition
 from models.DQN_3D import DQN_3D
 from models.SimpleDQN import SimpleDQN
-# from PrioritizedReplayBuffer import PrioritizedReplayBuffer
+from PrioritizedReplayBuffer import PrioritizedReplayBuffer
 from ReplayBuffer import ReplayMemory
 
 
@@ -27,7 +27,7 @@ class DQN:
         self.memory_size = memory_size
         self.gamma = gamma
 
-        self.memory = ReplayMemory(capacity=self.memory_size)
+        self.memory = PrioritizedReplayBuffer(capacity=self.memory_size)
 
         self.batch_size = batch_size
         self.exploration_rate = exploration_max
@@ -60,9 +60,12 @@ class DQN:
     def remember(self, transition: Transition):
         self.memory.push(transition)
 
-    def act(self, state, illegal_actions=[], epsilon=None) -> int:
+    def act(self, state, illegal_actions=None, epsilon=None) -> int:
         if epsilon is None:
             epsilon = self.exploration_rate
+        if illegal_actions is None:
+            illegal_actions = []
+
         if np.random.rand() < epsilon:
             actions = np.arange(self.action_size)
             # MUST change to float as np.nan is float type
@@ -74,7 +77,6 @@ class DQN:
 
             # return random.randrange(self.action_size)
             return int(random.choice(legal_actions))
-
 
         state = torch.tensor(state).to(self.device)
         with torch.no_grad():

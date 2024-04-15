@@ -9,9 +9,9 @@ from game.bomb import Bomb
 class Explosion:
     bomber = None
 
-    def __init__(self, x, y, r):
-        self.sourceX = x
-        self.sourceY = y
+    def __init__(self, x: int, y: int, r: int):
+        self.source_x = x
+        self.source_y = y
         self.range = r
         self.time = 300
         self.frame = 0
@@ -23,8 +23,7 @@ class Explosion:
         bombs.remove(b)
         self.bomb_chain(bombs, map, power_ups)
 
-    def bomb_chain(self, bombs, map, power_ups):
-
+    def bomb_chain(self, bombs: List[Bomb], map, power_ups):
         for s in self.sectors:
             for x in power_ups:
                 if x.pos_x == s[0] and x.pos_y == s[1]:
@@ -54,7 +53,6 @@ class Explosion:
         return destroyed_boxes
 
     def update(self, dt):
-
         self.time = self.time - dt
 
         if self.time < 100:

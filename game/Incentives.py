@@ -11,6 +11,7 @@ class Incentives(object):
     MOVING_FROM_BOMB_RANGE_REWARD: float = 0
     NOT_MOVING_FROM_BOMB_RANGE_PENALTY: float = 0
     WAITING_BESIDE_BOMB_RANGE_REWARD: float = 0
+    WAITING_BESIDE_EXPLOSION_REWARD: float = 0
     TRYING_TO_ENTER_WALL_PENALTY: float = 0
     BOXES_IN_BOMB_RANGE_REWARD: float = 0
     WALK_INTO_SPACE_REWARD: float = 0
@@ -28,3 +29,4 @@ class Incentives(object):
     ENEMY_GRAVITY: float = 0
     TARGET_ENEMY_GRAVITY: float = 0
     BOMB_GRAVITY: float = 0
+    BOMB_DEATH_DISTANCE_PENALTY: float = 0
