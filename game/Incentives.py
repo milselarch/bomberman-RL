@@ -25,3 +25,6 @@ class Incentives(object):
     STAY_ALIVE: float = 0
 
     BOX_GRAVITY: float = 0
+    ENEMY_GRAVITY: float = 0
+    TARGET_ENEMY_GRAVITY: float = 0
+    BOMB_GRAVITY: float = 0

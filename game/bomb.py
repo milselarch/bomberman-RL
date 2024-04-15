@@ -64,3 +64,14 @@ class Bomb:
             elif map[self.pos_x][self.pos_y - x] == 2:
                 self.sectors.append([self.pos_x, self.pos_y - x])
                 break
+
+    @property
+    def grid_x(self) -> int:
+        return int(self.pos_x / 4)
+
+    @property
+    def grid_y(self) -> int:
+        return int(self.pos_y / 4)
+
+    def getGridCoords(self):
+        return (self.grid_x, self.grid_y)
