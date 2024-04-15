@@ -1,9 +1,9 @@
 import pygame
 import math
 
-from bomb import Bomb
+from game.bomb import Bomb
 from enums.power_up_type import PowerUpType
-from Actor import Actor
+from game.Actor import Actor
 
 
 class Player(Actor):
@@ -21,6 +21,14 @@ class Player(Actor):
 
     def is_player(self) -> bool:
         return True
+
+    @property
+    def grid_x(self):
+        return int(self.pos_x / self.TILE_SIZE)
+
+    @property
+    def grid_y(self):
+        return int(self.pos_y / self.TILE_SIZE)
 
     def move(self, dx, dy, grid, enemies, power_ups):
         tempx = int(self.pos_x / Player.TILE_SIZE)

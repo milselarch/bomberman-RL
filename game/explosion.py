@@ -1,9 +1,9 @@
 from typing import Union, Optional, List
 
-from GridValues import GridValues
+from game.GridValues import GridValues
 from enums.power_up_type import PowerUpType
-from power_up import PowerUp
-from bomb import Bomb
+from game.power_up import PowerUp
+from game.bomb import Bomb
 
 
 class Explosion:

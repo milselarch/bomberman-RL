@@ -4,7 +4,7 @@ import pygame
 from collections import deque
 from matplotlib import pyplot as plt
 from enums.algorithm import Algorithm
-from BombermanEnv import BombermanEnv
+from game.BombermanEnv import BombermanEnv
 from dqn import DQN
 
 if __name__ == '__main__':
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     Q = {}
     currentState = env.reset()
     tupleCurrentState = tuple(map(tuple, currentState))
-    for action in env.actionSpace:
+    for action in env.action_space:
         Q[tupleCurrentState, action] = 0
 
     numGames = 50000
@@ -55,7 +55,7 @@ if __name__ == '__main__':
 
         while not done:
             rand = np.random.random()
-            action = env.max_action(Q, currentState, env.actionSpace) if rand < (1 - EPS) else env.actionSpaceSample()
+            action = env.max_action(Q, currentState, env.action_space) if rand < (1 - EPS) else env.action_space_sample()
             nextState, reward, done, info = env.step(action)
             epRewards += reward
             
@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
             print((tupleCurrentState, action))
 
-            actionTaken = env.max_action(Q, nextState, env.actionSpace)
+            actionTaken = env.max_action(Q, nextState, env.action_space)
             Q[tupleCurrentState, action] = Q[tupleCurrentState, action] + ALPHA*(reward + GAMMA * Q[tupleNextState, actionTaken] - Q[tupleCurrentState, action])
             currentState = nextState
 

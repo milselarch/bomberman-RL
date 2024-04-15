@@ -10,6 +10,6 @@ except ImportError as e:
 
 if __name__ == '__main__':
     # env = BombermanEnv(None, None, Algorithm.PLAYER, Algorithm.DFS, Algorithm.DIJKSTRA, Algorithm.DFS, None)
-    # model_path = "models/100.h5"
+    # model_path = "saves/100.h5"
     trainer = Trainer(incentives=incentives)
     trainer.train()

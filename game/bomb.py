@@ -1,20 +1,25 @@
-from Actor import Actor
+from game.Actor import Actor
 
 
 class Bomb:
+    WAIT_DURATION = 3000
     frame = 0
 
     def __init__(self, r, x, y, map, bomber: Actor):
         self.range = r
         self.pos_x = x
         self.pos_y = y
-        self.time = 7000 ########### TOO SHORT: 3000
+        self.time = self.WAIT_DURATION
         self.bomber: Actor = bomber
         self.sectors = []
         self.get_range(map)
 
-    def update(self, dt):
+    @property
+    def time_waited(self):
+        # time waited since being planted
+        return self.WAIT_DURATION - self.time
 
+    def update(self, dt):
         self.time = self.time - dt
 
         if self.time < 1000:
