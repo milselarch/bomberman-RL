@@ -50,7 +50,6 @@ class DQN:
         self.update_target_model()
 
     def _build_model(self):
-        """
         model = DQN_3D(
             fcc_input_size=8 * 13 ** 2, num_actions=self.action_size
         ).to(self.device)
@@ -58,6 +57,7 @@ class DQN:
         model = SimpleDQN(
             fcc_input_size=9 * 13 ** 2, num_actions=self.action_size
         ).to(self.device)
+        """
         return model
 
     def update_target_model(self):
@@ -134,7 +134,8 @@ class DQN:
 
         state_batch = torch.tensor(np.concatenate(batch.states))
         state_batch = state_batch.to(torch.float32).to(self.device)
-        action_batch = torch.tensor(batch.actions).to(torch.int32)
+        action_batch = torch.tensor(batch.actions).to(torch.int64)
+        action_batch = action_batch.to(self.device).unsqueeze(0)
         reward_batch = torch.tensor(batch.rewards)
         reward_batch = reward_batch.to(torch.float32).to(self.device)
         dones_batch = torch.tensor(batch.dones).to(torch.int32)
@@ -148,7 +149,8 @@ class DQN:
         non_final_next_states = non_final_next_states.to(torch.float32)
 
         # get Q-value predictions for state-action pairs that were taken
-        state_action_values = self.model.forward(state_batch)[action_batch]
+        q_values_batch = self.model.forward(state_batch)
+        state_action_values = torch.gather(q_values_batch, 1, action_batch)
         next_state_values = torch.zeros(batch_size, device=self.device)
 
         if len(non_final_next_states) > 0:
@@ -163,12 +165,9 @@ class DQN:
             (next_state_values * self.gamma) + reward_batch
         )
 
-        loss = self.criterion(
-            state_action_values, expected_state_action_values.unsqueeze(1)
-        )
-
-        loss_value = loss.item()
         self.optimizer.zero_grad()
+        loss = self.criterion(state_action_values, expected_state_action_values)
+        loss_value = loss.item()
         loss.backward()
         # In-place gradient clipping
         torch.nn.utils.clip_grad_value_(

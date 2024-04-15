@@ -895,10 +895,10 @@ class BombermanEnv(object):
         reward += destroy_box_reward
         reward += bomb_closeness_reward
 
+        """
         if bomb_closeness_reward != 0:
             print("CLOSENESS", bomb_closeness_reward)
 
-        """
         if (destroy_box_reward != 0) or (destroy_enemy_reward != 0):
             print("DESTROY", destroy_box_reward, destroy_enemy_reward)
         """

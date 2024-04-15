@@ -28,11 +28,11 @@ class Trainer(object):
         self.name = name
         self.incentives = incentives
 
-        self.learning_rate = 0.01
+        self.learning_rate = 0.001
         self.exploration_decay = 0.9995  # 0.95
         self.exploration_max = 0.2
         self.exploration_min = 0.001  # 0.01
-        self.gamma = 0.8  # 0.975
+        self.gamma = 0.9  # 0.975
         self.update_target_every = 100
         self.episode_buffer_size = 256
         self.episodes = 50 * 1000
