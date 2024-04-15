@@ -27,11 +27,11 @@ class Trainer(object):
         self.name = name
         self.incentives = incentives
 
-        self.learning_rate = 0.001
+        self.learning_rate = 0.01
         self.exploration_decay = 0.9995  # 0.95
         self.exploration_max = 0.2
         self.exploration_min = 0.001  # 0.01
-        self.gamma = 0.99  # 0.975
+        self.gamma = 0.95  # 0.975
         self.update_target_every = 100
         self.episode_buffer_size = 256
         self.episodes = 50 * 1000
@@ -146,7 +146,9 @@ class Trainer(object):
         best_score = -float('inf')
         ma_score = 0
 
-        # self.env.simulate_time = True
+        simulate_time = self.env.simulate_time
+        self.env.simulate_time = True
+
         # fill up memory before training starts
         while self.agent.memory.length() < self.episode_buffer_size:
             action_no = self.agent.act(state, illegal_actions=self.env.get_illegal_actions())
@@ -162,7 +164,7 @@ class Trainer(object):
             ))
             state = next_state
 
-        # self.env.simulate_time = False
+        self.env.simulate_time = simulate_time
         pbar = tqdm(range(self.episodes))
 
         for e in pbar:
@@ -186,13 +188,18 @@ class Trainer(object):
                         )
                         # print('ACT', self.env.to_action(action_no))
                     else:
+                        last_action = self.env.to_action(last_action_no)
+                        assert last_action != self.env.BOMB
                         action_no = last_action_no
-                        # print('WAIT', self.env.to_action(action_no))
+                        # print('REPEAT', self.env.to_action(action_no))
                 else:
                     assert TrainingSettings.IS_MANUAL_CONTROL
                     action_no = self.get_manual_action_no()
 
                 action = self.env.to_action(action_no)
+                if action == self.env.BOMB:
+                    pass
+
                 step_result = self.env.step(action)
                 next_state, reward, done, game_info = step_result
                 next_state = np.expand_dims(next_state, axis=0)
@@ -211,12 +218,13 @@ class Trainer(object):
                         pooled_rewards += reward
                         time_passed = step - last_pooled_step
 
-                        if flush or (time_passed >= self.pool_duration):
+                        if flush or (time_passed >= self.pool_duration - 1):
                             pooled_transition.next_state = state
                             pooled_transition.reward = pooled_rewards
                             self.agent.remember(pooled_transition)
                             pooled_transition = None
-                    else:
+
+                    elif action != self.env.BOMB:
                         pooled_rewards = reward
                         pooled_transition = transition
                         last_pooled_step = step
