@@ -13,7 +13,7 @@ from game.player import Player
 from game.enemy import Enemy
 from game.explosion import Explosion
 from game.bomb import Bomb
-from TrainingSettingsBools import TrainingSettingsBools
+from TrainingSettings import TrainingSettingsBools
 
 GRID_BASE_LIST = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],

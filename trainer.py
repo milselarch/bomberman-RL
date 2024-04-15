@@ -16,7 +16,7 @@ from datetime import datetime as Datetime
 from enums.algorithm import Algorithm
 from game.BombermanEnv import BombermanEnv
 from dqn import DQN
-from TrainingSettingsBools import TrainingSettingsBools
+from TrainingSettings import TrainingSettingsBools
 
 
 class Trainer(object):
@@ -188,7 +188,6 @@ class Trainer(object):
                     else:
                         action_no = last_action_no
                         # print('WAIT', self.env.to_action(action_no))
-
                 else:
                     assert TrainingSettingsBools.IS_MANUAL_CONTROL
                     action_no = self.get_manual_action_no()
@@ -203,23 +202,26 @@ class Trainer(object):
                     next_state=next_state, done=done
                 )
 
-                flush = done or (action_no == self.env.BOMB)
-                if flush:
-                    self.agent.remember(transition)
+                if TrainingSettingsBools.POOL_TRANSITIONS:
+                    flush = done or (action_no == self.env.BOMB)
+                    if flush:
+                        self.agent.remember(transition)
 
-                if pooled_transition is not None:
-                    pooled_rewards += reward
-                    time_passed = step - last_pooled_step
+                    if pooled_transition is not None:
+                        pooled_rewards += reward
+                        time_passed = step - last_pooled_step
 
-                    if flush or (time_passed >= self.pool_duration):
-                        pooled_transition.next_state = state
-                        pooled_transition.reward = pooled_rewards
-                        self.agent.remember(pooled_transition)
-                        pooled_transition = None
+                        if flush or (time_passed >= self.pool_duration):
+                            pooled_transition.next_state = state
+                            pooled_transition.reward = pooled_rewards
+                            self.agent.remember(pooled_transition)
+                            pooled_transition = None
+                    else:
+                        pooled_rewards = reward
+                        pooled_transition = transition
+                        last_pooled_step = step
                 else:
-                    pooled_rewards = reward
-                    pooled_transition = transition
-                    last_pooled_step = step
+                    self.agent.remember(transition)
 
                 last_action_no = action_no
                 state = next_state
