@@ -3,6 +3,7 @@ from trainer import Trainer
 
 try:
     from config import incentives
+    from config import training_settings
 except ImportError as e:
     print('No config module found. '
           'Copy config.example.py to config.py')
@@ -11,5 +12,7 @@ except ImportError as e:
 if __name__ == '__main__':
     # env = BombermanEnv(None, None, Algorithm.PLAYER, Algorithm.DFS, Algorithm.DIJKSTRA, Algorithm.DFS, None)
     # model_path = "saves/100.h5"
-    trainer = Trainer(incentives=incentives)
+    trainer = Trainer(
+        incentives=incentives, training_settings=training_settings
+    )
     trainer.train()

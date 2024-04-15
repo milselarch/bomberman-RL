@@ -1,25 +1,20 @@
-from Incentives import Incentives
+from game.Incentives import Incentives
+from TrainingSettings import TrainingSettings
 
-"""
+# reward engineering incentives
 incentives = Incentives(
-    IN_BOMB_RANGE_PENALTY=-5,
-    NOT_IN_BOMB_RANGE_PENALTY=5,
-    MOVING_INTO_BOMB_RANGE_PENALTY=-10,
-    MOVING_FROM_BOMB_RANGE_REWARD=10,
-    NOT_MOVING_FROM_BOMB_RANGE_PENALTY=-10,
-    WAITING_BESIDE_BOMB_RANGE_REWARD=100,
-    TRYING_TO_ENTER_WALL_PENALTY=-5,
-    BOXES_IN_BOMB_RANGE_REWARD=10,
-    WALK_INTO_SPACE_REWARD=5,
-    SAME_GRID_PENALTY=-5,
-    TRAPPED_WITH_BOMB_PENALTY=-10,
-    NOT_IN_BOMB_RANGE_REWARD = 1,
-    DEATH_PENALTY=-100
-)
-"""
-
-incentives = Incentives(
-    DEATH_PENALTY=-100,
+    DEATH_PENALTY=-1,
+    BOMB_DEATH_DISTANCE_PENALTY=-2,
     DESTROY_BOX_REWARD=1,
-    DESTROY_ENEMY_REWARD=100
+    DESTROY_ENEMY_REWARD=10,
+    IN_BOMB_RANGE_PENALTY=0,
+    FIRST_CORNER_BOMB_PENALTY=-10
+)
+
+# other training hyperparameters
+training_settings = TrainingSettings(
+    IS_MANUAL_CONTROL=False,
+    IS_CHECKING_ILLEGAL_ACTION=True,
+    IS_PRESET_GRID=False,
+    POOL_TRANSITIONS=True
 )
