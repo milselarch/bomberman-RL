@@ -13,6 +13,9 @@ from player import Player
 from enemy import Enemy
 from explosion import Explosion
 from bomb import Bomb
+import heapq
+from astar import find_path
+
 
 GRID_BASE_LIST = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -477,14 +480,11 @@ class BombermanEnv(object):
         yDist = abs(endGridCoords[1] - startGridCoords[1])
         return xDist + yDist
     
-    def judgePotentialBombSectors(self):
-        playerPos = self.player.getGridCoords()
-        playerRange = 3 # TODO: refactor so this magic number is represented properly
-
-        sectors = [playerPos]
+    def getPotentialBombSectors(self, coords, explosionRange):
+        sectors = [coords]
         for direction in ["left", "right", "up", "down"]:
-            pos = playerPos.copy()
-            for _ in range(playerRange):
+            pos = coords.copy()
+            for _ in range(explosionRange):
                 pos = self.stepInDirection(pos, direction)
                 match self.grid_state[pos[0], pos[1]]:
                     case GridValues.EMPTY_GRID_VAL | GridValues.BOX_GRID_VAL | GridValues.BOMB_GRID_VAL:
@@ -494,13 +494,76 @@ class BombermanEnv(object):
         return sectors
     
     
-    def checkHowManyBoxesWillBeDestroyedIfPlaceBombNow(self):
-        potentialSectors = self.judgePotentialBombSectors()
-        count = 0
-        for sector in potentialSectors:
-            if self.grid_state[sector[0], sector[1]] == GridValues.BOX_GRID_VAL:
-                count += 1
-        return count
+    def getPeripheryOfSectors(self, sectors):
+        allAdjacentSectors = set()
+        for sector in sectors:
+            # use a set to eliminate duplicates if stepInDirection() is next to map border
+            adjacentSectors = {self.stepInDirection(sector, direction) for direction in ["left", "right", "up", "down"]}
+            allAdjacentSectors.update(adjacentSectors)
+        return allAdjacentSectors.difference(set(sectors))
+    
+    def getFilledBoundingBoxOfSectors(self, sectors):
+        maxX = maxY = 0
+        minX = minY = max(self.grid_height, self.grid_width)
+        for sector in sectors:
+            maxX = max(maxX, sector[0])
+            maxY = max(maxY, sector[1])
+            minX = min(minX, sector[0])
+            minY = min(minY, sector[1])
+        return [
+            [x, y]
+            for x in range(minX, maxX + 1)
+            for y in range(minY, maxY + 1)
+        ]
+    
+
+    def getCurrentTarget(self):
+        return self.enemyList[0] if self.enemyList else None
+        
+
+    def considerPlacingBombNow(self):
+        statsIfPlaceBombNow = {
+            "boxCount": 0,
+            "enemyCount": 0,
+            "enemyCountIfInfiniteRange": 0,
+            "enemyCountMissByOne": 0,
+            "enemyCountWithinSquare": 0,
+        }
+
+        def getValuesInPotentialSectors(sectors, gridValueToStat, statsIfPlaceBombNow):
+            """
+            {
+                GridValues.BOX_GRID_VAL: ("boxCount", 1),
+            }
+            """
+            for sector in sectors:
+                gridValue = self.grid_state[sector[0], sector[1]]
+                if gridValue in gridValueToStat.keys():
+                    statName, incrementValue = gridValueToStat[gridValue]
+                    statsIfPlaceBombNow[statName] += incrementValue
+
+        potentialSectors = self.getPotentialBombSectors(self.player.getGridCoords(), self.player.range)
+        getValuesInPotentialSectors(potentialSectors, {
+            GridValues.BOX_GRID_VAL: "boxCount",
+            GridValues.ENEMY_GRID_VAL: "enemyCount",
+        }, statsIfPlaceBombNow)
+
+        potentialSectorsInfiniteRange = self.getPotentialBombSectors(self.player.getGridCoords(), max(self.grid_height, self.grid_width))
+        getValuesInPotentialSectors(potentialSectorsInfiniteRange, {
+            GridValues.ENEMY_GRID_VAL: "enemyCountIfInfiniteRange",
+        }, statsIfPlaceBombNow)
+
+        potentialSectorsMissByOne = self.getPeripheryOfSectors(potentialSectors)
+        getValuesInPotentialSectors(potentialSectorsMissByOne, {
+            GridValues.ENEMY_GRID_VAL: "enemyCountMissByOne",
+        }, statsIfPlaceBombNow)
+
+        potentialSectorsWithinSquare = self.getFilledBoundingBoxOfSectors(potentialSectors)
+        getValuesInPotentialSectors(potentialSectorsWithinSquare, {
+            GridValues.ENEMY_GRID_VAL: "enemyCountWithinSquare",
+        }, statsIfPlaceBombNow)
+
+        return statsIfPlaceBombNow
 
     def getGridCoordsContainingValue(self, targetValues):
         return [
@@ -510,10 +573,60 @@ class BombermanEnv(object):
             if coord in targetValues
         ]
 
+    def gravity(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
+        G = 1
+        aStarPath = self.aStar(entity1GridCoords, entity2GridCoords)
+        aStarDistance = len(aStarPath)
+        return (G*entity1Mass*entity2Mass)/(aStarDistance)
 
-    # def getGridCoordIncentiveDict(self):
-    #     boxGridCoords = self.getGridCoordsContainingValue({GridValues.BOX_GRID_VAL})
+    def getGridCoordIncentiveDict(self):
+        boxGridCoords = self.getGridCoordsContainingValue({GridValues.BOX_GRID_VAL})
+        
 
+        """
+        [0, 0, 1, 0, 0]
+        """
+    
+    def getGridStateAsSectors(self):
+        return {
+            [x, y]
+            for x in range(self.grid_width)
+            for y in range(self.grid_height)
+        }
+        
+    def getNeighbours(self, coords):
+        return {self.stepInDirection(coords, direction) for direction in ["left", "right", "up", "down"]}
+
+    def aStar(self, start, goal):
+        indestructibleSectors = self.getGridCoordsContainingValue({GridValues.WALL_GRID_VAL})
+        if start in indestructibleSectors or goal in indestructibleSectors:
+            return None
+
+        notIndestructibleSectors = self.getGridStateAsSectors().difference(indestructibleSectors)
+        def getNeighboursNotWalls(coords):
+            return self.getNeighbours(coords).difference(notIndestructibleSectors)
+        
+        path = find_path(
+            start=start,
+            goal=goal,
+            neighbors_fnct=getNeighboursNotWalls,
+            reversePath=False,
+            heuristic_cost_estimate_fnct=self.manhattanDistance,
+            distance_between_fnct=lambda a,b: 1,
+            is_goal_reached_fnct=lambda a,b: a==b,
+        )
+
+        print("ASTAR")
+        print("FROM",start)
+        print("TO",goal)
+        print("PATH",path)
+
+        return path
+
+            
+            
+
+    
 
 
     def squareIsWalkable(self, coord):

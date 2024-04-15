@@ -7,3 +7,4 @@ gym==0.26.2
 tqdm==4.66.2
 numpy~=1.23.5
 Pympler~=1.0.1
+astar==0.99
