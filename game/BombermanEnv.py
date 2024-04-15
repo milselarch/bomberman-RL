@@ -13,7 +13,7 @@ from game.player import Player
 from game.enemy import Enemy
 from game.explosion import Explosion
 from game.bomb import Bomb
-from TrainingSettings import TrainingSettingsBools
+from TrainingSettings import TrainingSettings
 
 GRID_BASE_LIST = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -347,7 +347,7 @@ class BombermanEnv(object):
                     self.grid[i][j] = GridValues.BOX_GRID_VAL
                     pass
 
-        if TrainingSettingsBools.IS_PRESET_GRID:
+        if TrainingSettings.IS_PRESET_GRID:
             self.grid = np.array(GRID_BASE_LIST_PRESET_BOXES)
 
         return
@@ -743,7 +743,7 @@ class BombermanEnv(object):
     def get_illegal_actions(self):
         illegal_actions = []
         
-        if TrainingSettingsBools.IS_CHECKING_ILLEGAL_ACTION:
+        if TrainingSettings.IS_CHECKING_ILLEGAL_ACTION:
 
             player_pos_x = self.player.pos_x
             player_pos_y = self.player.pos_y
