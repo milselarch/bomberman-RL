@@ -56,7 +56,7 @@ class DQN:
         ).to(self.device)
         """
         model = SimpleDQN(
-            fcc_input_size=9 * 13 ** 2, num_actions=self.action_size
+            fcc_input_size=11 * 13 ** 2, num_actions=self.action_size
         ).to(self.device)
         return model
 

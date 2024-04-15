@@ -7,7 +7,7 @@ from Transition import Transition, TransitionsBatch
 
 class PrioritizedReplayBuffer:
     def __init__(
-        self, capacity: int, epsilon=1e-6, alpha=2, beta=0.4,
+        self, capacity: int, epsilon=1e-6, alpha=0.8, beta=0.4,
         beta_increment=0.001
     ):
         self.capacity = capacity

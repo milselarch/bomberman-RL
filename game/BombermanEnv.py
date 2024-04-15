@@ -154,6 +154,7 @@ class BombermanEnv(object):
         self.player = Player()
         self.player_prev_grid_pos_x = self.player.grid_x
         self.player_prev_grid_pos_y = self.player.grid_y
+        self.player_bombs_planted = 0
         self.player_direction_x = 0
         self.player_direction_y = 0
         self.player_moving = False
@@ -776,6 +777,9 @@ class BombermanEnv(object):
 
     def step(self, action):
         self._steps += 1
+        I: Incentives = self.incentives
+        reward: float = 0
+
         # print('TICK_FPS', self.tick_fps)
         if self.simulate_time:
             dt = 1000 // self.physics_fps
@@ -866,11 +870,13 @@ class BombermanEnv(object):
                 y = player_bomb.pos_y
 
                 self.grid[x][y] = GridValues.BOMB_GRID_VAL
-                self.grid_state[x][y] = GridValues.BOMB_GRID_VAL
+                # self.grid_state[x][y] = GridValues.BOMB_GRID_VAL
                 self.player.bomb_limit -= 1
 
-        I: Incentives = self.incentives
-        reward: float = 0
+                if ((x, y) == (1, 1)) and (self.player_bombs_planted == 0):
+                    reward += I.FIRST_CORNER_BOMB_PENALTY
+
+                self.player_bombs_planted += 1
 
         update_bombs_result = self.update_bombs(dt)
         player_destroyed_boxes = update_bombs_result.player_destroyed_boxes
@@ -968,20 +974,24 @@ class BombermanEnv(object):
             one_hot[np.where(raw_state == grid_value)] = 1.0
             one_hot_states.append(one_hot)
 
-            if grid_value == GridValues.PLAYER_GRID_VAL:
-                pass
-
         """
         store how long the bombs have been waiting in the grid
         (scaled from 0 to 1 (ready to explode)) 
         """
+        all_bombs_grid = np.zeros_like(raw_state).astype(np.float32)
+        player_bombs_grid = np.zeros_like(raw_state).astype(np.float32)
         bomb_waits = np.zeros_like(raw_state).astype(np.float32)
+
         for bomb in self.bombs:
             x, y = bomb.pos_x, bomb.pos_y
+            all_bombs_grid[x][y] = 1.0
+            player_bombs_grid[x][y] = 1.0 * int(bomb.is_player_bomb())
             bomb_waits[x][y] = (
                 bomb.time_waited / Bomb.WAIT_DURATION
             )
 
+        one_hot_states.append(all_bombs_grid)
+        one_hot_states.append(player_bombs_grid)
         one_hot_states.append(bomb_waits)
 
         bomb_counts = np.zeros_like(raw_state).astype(np.float32)
@@ -1029,6 +1039,7 @@ class BombermanEnv(object):
         self.player = Player()
         self.player_prev_grid_pos_x = self.player.grid_x
         self.player_prev_grid_pos_y = self.player.grid_y
+        self.player_bombs_planted = 0
         self.player_direction_x = 0
         self.player_direction_y = 0
         self.player_moving = False

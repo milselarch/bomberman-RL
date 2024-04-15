@@ -22,4 +22,5 @@ class Incentives(object):
     DESTROY_BOX_REWARD: float = 0
     DESTROY_ENEMY_REWARD: float = 0
     BOMB_DEATH_DISTANCE_PENALTY: float = 0
-    ILLEGAL_ACTION_PENALTY: float = 0
+    # penalizes placing the first bomb in the spawn area
+    FIRST_CORNER_BOMB_PENALTY: float = 0
