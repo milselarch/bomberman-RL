@@ -54,6 +54,22 @@ GRID_BASE_LIST_PRESET_BOXES = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 ]
 
+EMPTY_GRID = [
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+]
+
 GRID_BASE = np.array(GRID_BASE_LIST)
 
 
@@ -343,30 +359,32 @@ class BombermanEnv(object):
         """ This is just generating destroyable boxes if I am not wrong. """
         ####################################################################
 
-        # hardcoded = {(3, 7), (5, 4), (3, 10), (5, 7), (9, 5), (5, 10), (8, 3), (10, 6), (9, 8), (8, 6), (10, 3), (1, 6), (2, 5), (2, 8), (7, 4), (7, 1), (7, 7), (6, 8), (4, 5), (3, 9), (4, 8), (5, 9), (9, 1), (8, 5), (10, 2), (9, 4), (9, 10), (8, 8), (10, 5), (2, 7), (10, 8), (6, 1), (1, 8), (6, 4), (7, 9), (6, 7), (7, 6), (4, 7), (4, 4), (8, 4), (9, 9), (8, 7), (10, 4), (10, 1), (10, 7), (10, 10), (1, 7), (2, 6), (6, 6), (7, 5), (6, 3), (6, 9), (7, 8)}
+        hardcoded = {(3, 7), (5, 4), (3, 10), (5, 7), (9, 5), (5, 10), (8, 3), (10, 6), (9, 8), (8, 6), (10, 3), (1, 6), (2, 5), (2, 8), (7, 4), (7, 1), (7, 7), (6, 8), (4, 5), (3, 9), (4, 8), (5, 9), (9, 1), (8, 5), (10, 2), (9, 4), (9, 10), (8, 8), (10, 5), (2, 7), (10, 8), (6, 1), (1, 8), (6, 4), (7, 9), (6, 7), (7, 6), (4, 7), (4, 4), (8, 4), (9, 9), (8, 7), (10, 4), (10, 1), (10, 7), (10, 10), (1, 7), (2, 6), (6, 6), (7, 5), (6, 3), (6, 9), (7, 8)}
 
-        # for x,y in hardcoded:
-        #     self.grid[x][y] = GridValues.BOX_GRID_VAL
+        for x,y in hardcoded:
+            self.grid[x][y] = GridValues.BOX_GRID_VAL
 
-        # for i in range(1, len(self.grid) - 1):
-        #     for j in range(1, len(self.grid[i]) - 1):
-        #         if self.grid[i][j] != 0:
-        #             continue
+        for i in range(1, len(self.grid) - 1):
+            for j in range(1, len(self.grid[i]) - 1):
+                if self.grid[i][j] != 0:
+                    continue
 
-        #         out_of_grid = (
-        #             (i < 3 or i > len(self.grid) - 4) and
-        #             (j < 3 or j > len(self.grid[i]) - 4)
-        #         )
-        #         if out_of_grid:
-        #             continue
+                out_of_grid = (
+                    (i < 3 or i > len(self.grid) - 4) and
+                    (j < 3 or j > len(self.grid[i]) - 4)
+                )
+                if out_of_grid:
+                    continue
 
-        #         if random.randint(0, 9) < 7:
-        #             self.grid[i][j] = GridValues.BOX_GRID_VAL
-        #             pass
+                if random.randint(0, 9) < 7:
+                    self.grid[i][j] = GridValues.BOX_GRID_VAL
+                    pass
 
-        if TrainingSettings.IS_PRESET_GRID:
-            self.grid = np.array(GRID_BASE_LIST_PRESET_BOXES)
-
+        match TrainingSettings.USE_PRESET_GRID:
+            case "preset1":
+                self.grid = np.array(GRID_BASE_LIST_PRESET_BOXES)
+            case "empty":
+                self.grid = np.array(EMPTY_GRID)
         return
 
     def set_enemies_in_grid(self):
@@ -709,6 +727,15 @@ class BombermanEnv(object):
                     res.append((x,y))
         return res
 
+    def aStarSigmoid(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
+        G = 1
+        aStarPath = self.aStar(entity1GridCoords, entity2GridCoords)
+        if not aStarPath:
+            return 0
+
+        aStarDistance = len(aStarPath)
+        return (G * entity1Mass * entity2Mass) / (1+np.e**(aStarDistance+10))
+
     def aStarGravity(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
         G = 100
         aStarPath = self.aStar(entity1GridCoords, entity2GridCoords)
@@ -720,6 +747,13 @@ class BombermanEnv(object):
         # if aStarDistance == 0:
         #     aStarDistance = 0.1
         return (G * entity1Mass * entity2Mass) / (aStarDistance**2)
+
+    def manhattanSigmoid(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
+        G = 100
+        manhattan = manhattanDistance(entity1GridCoords, entity2GridCoords)
+        if manhattan == 0:
+            manhattan = 0.1
+        return (G * entity1Mass * entity2Mass) / (1+np.e**(manhattan+1))
 
     def manhattanGravity(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
         G = 100
@@ -740,15 +774,15 @@ class BombermanEnv(object):
         boxGridCoords = self.getGridCoordsContainingValue({GridValues.BOX_GRID_VAL})
         # print("boxes", boxGridCoords)
         for box in boxGridCoords:
-            res["box_gravity"] += self.aStarGravity(1, 1, box, coords)
+            res["box_gravity"] += self.aStarSigmoid(1, 1, box, coords)
 
         enemyGridCoords = self.getGridCoordsContainingValue({GridValues.ENEMY_GRID_VAL})
         # print("enemies", enemyGridCoords)
         for enemy in enemyGridCoords:
-            res["enemy_gravity"] += self.aStarGravity(1, 5, enemy, (coords[0], coords[1]))
+            res["enemy_gravity"] += self.aStarSigmoid(1, 5, enemy, (coords[0], coords[1]))
 
         if self.currentTargetEnemy is not None:
-            res ["target_enemy_gravity"] += self.manhattanGravity(
+            res ["target_enemy_gravity"] += self.manhattanSigmoid(
                 1,
                 10,
                 self.player.getGridCoords(),
@@ -760,7 +794,7 @@ class BombermanEnv(object):
         for bomb in self.bombs:
             bombCoords = bomb.getGridCoords()
             timeElapsed = bomb.time - bomb.time_waited
-            res["bomb_gravity"] += self.manhattanGravity(1, 0.1*abs(timeElapsed), bombCoords, (coords[0], coords[1]))
+            res["bomb_gravity"] += self.manhattanSigmoid(1, 10, bombCoords, (coords[0], coords[1]))
         return res
 
     def getGridStateAsSectors(self):
