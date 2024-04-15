@@ -354,43 +354,34 @@ class BombermanEnv(object):
 
     def set_enemies_in_grid(self):
         for i in range(len(self.enemy_list)):
-            x = self.enemies_prev_grid_pos_x[i]
-            y = self.enemies_prev_grid_pos_y[i]
-            self.grid_state[x][y] = GridValues.EMPTY_GRID_VAL
-            if self.grid_state[x][y] < 0:
-                self.grid_state[x][y] = 0
+            enemy = self.enemy_list[i]
 
-            self.enemies_prev_grid_pos_x[i] = int(
-                self.enemy_list[i].pos_x / Enemy.TILE_SIZE
-            )
-            self.enemies_prev_grid_pos_y[i] = int(
-                self.enemy_list[i].pos_y / Enemy.TILE_SIZE
-            )
+            prev_x = self.enemies_prev_grid_pos_x[i]
+            prev_y = self.enemies_prev_grid_pos_y[i]
+            self.grid_state[prev_x][prev_y] = GridValues.EMPTY_GRID_VAL
 
-            assert self.grid_state[x][y] == GridValues.EMPTY_GRID_VAL
+            x, y = enemy.grid_x, enemy.grid_y
+            self.enemies_prev_grid_pos_x[i] = x
+            self.enemies_prev_grid_pos_y[i] = y
             self.grid_state[x][y] = GridValues.ENEMY_GRID_VAL
 
-    def clear_enemy_from_grid(self, enemy):
-        x = (int(enemy.pos_x / Enemy.TILE_SIZE))
-        y = (int(enemy.pos_y / Enemy.TILE_SIZE))
-        self.grid_state[x][y] = GridValues.EMPTY_GRID_VAL
+    def clear_enemy_from_grid(self, enemy: Enemy):
+        self.grid_state[enemy.grid_x][enemy.grid_y] = GridValues.EMPTY_GRID_VAL
 
     def set_player_in_grid(self):
         x = self.player_prev_grid_pos_x
         y = self.player_prev_grid_pos_y
         self.grid_state[x][y] = GridValues.EMPTY_GRID_VAL
 
-        tile_size = Player.TILE_SIZE
-        self.player_prev_grid_pos_x = int(self.player.pos_x / tile_size)
-        self.player_prev_grid_pos_y = int(self.player.pos_y / tile_size)
-
-        x = self.player_prev_grid_pos_x
-        y = self.player_prev_grid_pos_y
+        x = self.player.grid_x
+        y = self.player.grid_y
+        self.player_prev_grid_pos_x = x
+        self.player_prev_grid_pos_y = y
         self.grid_state[x][y] = GridValues.PLAYER_GRID_VAL
 
     def clear_player_from_grid(self):
-        x = self.player_prev_grid_pos_x
-        y = self.player_prev_grid_pos_y
+        x = self.player.grid_x
+        y = self.player.grid_y
         self.grid_state[x][y] = GridValues.EMPTY_GRID_VAL
 
     def set_explosions_in_grid(self) -> int:

@@ -28,7 +28,7 @@ class Trainer(object):
         self.name = name
         self.incentives = incentives
 
-        self.learning_rate = 0.001
+        self.learning_rate = 0.003
         self.exploration_decay = 0.9995  # 0.95
         self.exploration_max = 0.2
         self.exploration_min = 0.001  # 0.01
@@ -230,7 +230,7 @@ class Trainer(object):
                         pooled_rewards += reward
                         time_passed = step - last_pooled_step
 
-                        if flush or (time_passed >= self.pool_duration - 1):
+                        if flush or (time_passed >= self.pool_duration):
                             pooled_transition.next_state = next_state
                             pooled_transition.next_q_values = q_values
                             pooled_transition.reward = pooled_rewards
