@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 
@@ -22,14 +22,17 @@ class PrioritizedReplayBuffer:
     def length(self):
         return len(self.data)
 
-    def push(self, transition: Transition):
+    def push(self, transition: Transition, priority: Optional[float] = None):
         max_priority = np.max(self.priority_buffer) if self.data else 1.0
         if len(self.data) < self.capacity:
             self.data.append(transition)
         else:
             self.data[self.position] = transition
 
-        self.priority_buffer[self.position] = max_priority
+        if priority is None:
+            priority = max_priority
+
+        self.priority_buffer[self.position] = priority
         self.position = (self.position + 1) % self.capacity
 
     def sample(self, batch_size):
