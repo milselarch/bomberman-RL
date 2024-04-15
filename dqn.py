@@ -60,18 +60,34 @@ class DQN:
     def remember(self, transition: Transition):
         self.memory.push(transition)
 
-    def act(self, state, epsilon=None) -> int:
+    def act(self, state, illegal_actions=[], epsilon=None) -> int:
         if epsilon is None:
             epsilon = self.exploration_rate
         if np.random.rand() < epsilon:
-            return random.randrange(self.action_size)
+            actions = np.arange(self.action_size)
+            # MUST change to float as np.nan is float type
+            actions = actions.astype(float)
+            # Set illegal actions to NaN
+            actions[illegal_actions] = np.nan 
+            # '~' character is to filter out NaN elements
+            legal_actions = actions[~np.isnan(actions)]
+
+            # return random.randrange(self.action_size)
+            return int(random.choice(legal_actions))
+
 
         state = torch.tensor(state).to(self.device)
         with torch.no_grad():
             raw_prediction = self.model.forward(state)
 
         prediction = raw_prediction.cpu().numpy()
-        return np.argmax(prediction[0])
+
+        # Prevent illegal actions from being picked by setting them to NaN
+        prediction[0][illegal_actions] = np.nan
+
+        # Return argmax ignoring NaNs.
+        return np.nanargmax(prediction[0])
+        # return np.argmax(prediction[0])
 
     def replay(self, episode_no: int = 0):
         if self.memory.length() < self.batch_size:
