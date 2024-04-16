@@ -4,7 +4,7 @@ from game.Actor import Actor
 
 
 class Bomb:
-    WAIT_DURATION = 12000 #3000
+    WAIT_DURATION = 3000
     frame = 0
 
     def __init__(self, r: int, x: int, y: int, grid_map, bomber: Actor):

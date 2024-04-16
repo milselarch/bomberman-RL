@@ -614,9 +614,9 @@ class BombermanEnv(object):
         return res
 
     def getPotentialBombSectors(self, coords, explosionRange):
-        sectors = [coords]
+        sectors = {coords}
         for direction in ["left", "right", "up", "down"]:
-            pos = coords.copy()
+            pos = coords
             for _ in range(explosionRange):
                 pos = self.stepInDirection(pos, direction)
                 match self.grid_state[pos[0], pos[1]]:
@@ -624,8 +624,10 @@ class BombermanEnv(object):
                         GridValues.EMPTY_GRID_VAL
                         | GridValues.BOX_GRID_VAL
                         | GridValues.BOMB_GRID_VAL
+                        | GridValues.ENEMY_GRID_VAL
+                        | GridValues.EXPLOSION_GRID_VAL
                     ):
-                        sectors.append(pos.copy())
+                        sectors.add(pos)
                     case _:
                         break
         return sectors
@@ -649,7 +651,7 @@ class BombermanEnv(object):
             maxY = max(maxY, sector[1])
             minX = min(minX, sector[0])
             minY = min(minY, sector[1])
-        return [[x, y] for x in range(minX, maxX + 1) for y in range(minY, maxY + 1)]
+        return {(x, y) for x in range(minX, maxX + 1) for y in range(minY, maxY + 1)}
 
     def considerPlacingBombNow(self):
         statsIfPlaceBombNow = {
@@ -660,60 +662,43 @@ class BombermanEnv(object):
             "enemyCountWithinSquare": 0,
         }
 
-        def getValuesInPotentialSectors(sectors, gridValueToStat, statsIfPlaceBombNow):
-            """
-            {
-                GridValues.BOX_GRID_VAL: ("boxCount", 1),
-            }
-            """
-            for sector in sectors:
-                gridValue = self.grid_state[sector[0], sector[1]]
-                if gridValue in gridValueToStat.keys():
-                    statName, incrementValue = gridValueToStat[gridValue]
-                    statsIfPlaceBombNow[statName] += incrementValue
-
+        boxCoords = self.getGridCoordsContainingValue({GridValues.BOX_GRID_VAL})
+        enemyCoords = [enemy.getGridCoords() for enemy in self.enemy_list]
         potentialSectors = self.getPotentialBombSectors(
             self.player.getGridCoords(), self.player.range
         )
-        getValuesInPotentialSectors(
-            potentialSectors,
-            {
-                GridValues.BOX_GRID_VAL: "boxCount",
-                GridValues.ENEMY_GRID_VAL: "enemyCount",
-            },
-            statsIfPlaceBombNow,
-        )
+        # print("boxes", boxCoords)
+        # print("enemies", enemyCoords)
+
+        # print("pot", potentialSectors)
+        for coord in boxCoords:
+            if coord in potentialSectors:
+                statsIfPlaceBombNow["boxCount"] += 1
+        for coord in enemyCoords:
+            if coord in potentialSectors:
+                statsIfPlaceBombNow["enemyCount"] += 1
 
         potentialSectorsInfiniteRange = self.getPotentialBombSectors(
             self.player.getGridCoords(), max(self.grid.shape[1], self.grid.shape[0])
         )
-        getValuesInPotentialSectors(
-            potentialSectorsInfiniteRange,
-            {
-                GridValues.ENEMY_GRID_VAL: "enemyCountIfInfiniteRange",
-            },
-            statsIfPlaceBombNow,
-        )
+        # print("infinite", potentialSectorsInfiniteRange)
+        for coord in enemyCoords:
+            if coord in potentialSectorsInfiniteRange:
+                statsIfPlaceBombNow["enemyCountIfInfiniteRange"] += 1
 
         potentialSectorsMissByOne = self.getPeripheryOfSectors(potentialSectors)
-        getValuesInPotentialSectors(
-            potentialSectorsMissByOne,
-            {
-                GridValues.ENEMY_GRID_VAL: "enemyCountMissByOne",
-            },
-            statsIfPlaceBombNow,
-        )
+        # print("missbyone", potentialSectorsMissByOne)
+        for coord in enemyCoords:
+            if coord in potentialSectorsMissByOne:
+                statsIfPlaceBombNow["enemyCountMissByOne"] += 1
 
         potentialSectorsWithinSquare = self.getFilledBoundingBoxOfSectors(
             potentialSectors
         )
-        getValuesInPotentialSectors(
-            potentialSectorsWithinSquare,
-            {
-                GridValues.ENEMY_GRID_VAL: "enemyCountWithinSquare",
-            },
-            statsIfPlaceBombNow,
-        )
+        # print("square", potentialSectorsWithinSquare)
+        for coord in enemyCoords:
+            if coord in potentialSectorsWithinSquare:
+                statsIfPlaceBombNow["enemyCountWithinSquare"] += 1
 
         return statsIfPlaceBombNow
 
@@ -1359,6 +1344,9 @@ class BombermanEnv(object):
         has_dropped_bomb = False
         player_bomb = None
 
+        I: Incentives = self.incentives
+        reward: float = 0
+
         if action == self.BOMB:
             if self.player.bomb_limit != 0 and self.player.life:
                 has_dropped_bomb = True
@@ -1372,8 +1360,13 @@ class BombermanEnv(object):
                 self.grid_state[x][y] = GridValues.BOMB_GRID_VAL
                 self.player.bomb_limit -= 1
 
-        I: Incentives = self.incentives
-        reward: float = 0
+                placeBomBNow = self.considerPlacingBombNow()
+                print(placeBomBNow)
+                reward += placeBomBNow["boxCount"] * I.PLACE_BOMB_CONSIDER_BOX_COUNT
+                reward += placeBomBNow["enemyCount"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT
+                reward += placeBomBNow["enemyCountIfInfiniteRange"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_INF_RANGE
+                reward += placeBomBNow["enemyCountMissByOne"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_MISS_BY_ONE
+                reward += placeBomBNow["enemyCountWithinSquare"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_IN_SQUARE
 
         update_bombs_result = self.update_bombs(dt)
         player_destroyed_boxes = update_bombs_result.player_destroyed_boxes
@@ -1419,7 +1412,7 @@ class BombermanEnv(object):
 
         if self.gridCoordIncentiveTick == 0:
             gcid = self.getGridCoordIncentiveDict()
-            print(gcid)
+            # print(gcid)
             reward += gcid["box_gravity"] * I.BOX_GRAVITY
             reward += gcid["enemy_gravity"] * I.ENEMY_GRAVITY
             reward += gcid["target_enemy_gravity"] * I.TARGET_ENEMY_GRAVITY
