@@ -28,3 +28,6 @@ class TrainingSettings(object):
     pool_duration: float = 4
     # whether to print debug statements onto console
     verbose: bool = False
+
+    # whether to run the model using GPU
+    use_gpu: bool = True
