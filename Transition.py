@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from typing import List
+from typing import List, Optional
 from dataclasses import dataclass, field
 
 
@@ -13,6 +13,9 @@ class Transition(object):
     reward: float
     next_state: np.ndarray
     done: bool
+
+    q_values: Optional[np.ndarray] = field(default=None, init=True)
+    next_q_values: Optional[np.ndarray] = field(default=None, init=True)
 
 
 @dataclass

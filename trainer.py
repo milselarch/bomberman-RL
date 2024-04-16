@@ -15,27 +15,30 @@ from collections import deque
 from datetime import datetime as Datetime
 from enums.algorithm import Algorithm
 from game.BombermanEnv import BombermanEnv
-from dqn import DQN
 from TrainingSettings import TrainingSettings
+from dqn import DQN
 
 
 class Trainer(object):
 
     def __init__(
-        self, name='ddqn', incentives: Incentives = Incentives()
+        self, name='ddqn', incentives: Incentives = Incentives(),
+        training_settings: TrainingSettings = TrainingSettings(),
     ):
         self.name = name
         self.incentives = incentives
+        self.training_settings = training_settings
 
-        self.learning_rate = 0.001
-        self.exploration_decay = 0.9995  # 0.95
-        self.exploration_max = 0.2
-        self.exploration_min = 0.001  # 0.01
-        self.gamma = 0.99  # 0.975
-        self.update_target_every = 100
-        self.episode_buffer_size = 256
-        self.episodes = 50 * 1000
-        self.pool_duration = 4
+        self.learning_rate = training_settings.learning_rate
+        self.exploration_decay = training_settings.exploration_decay
+        self.exploration_max = training_settings.exploration_max
+        self.exploration_min = training_settings.exploration_min
+        self.gamma = training_settings.gamma
+        self.update_target_every = training_settings.update_target_every
+        self.episode_buffer_size = training_settings.episode_buffer_size
+        self.episodes = training_settings.episodes
+        self.pool_duration = training_settings.pool_duration
+        self.verbose = training_settings.verbose
 
         self.logs_dir = 'logs'
         self.models_save_dir = 'saves'
@@ -64,7 +67,7 @@ class Trainer(object):
             self.en1_alg, self.en2_alg, self.en3_alg,
             self.tile_size, incentives=incentives,
             simulate_time=True, physics_fps=15,
-            render_fps=15
+            render_fps=15, training_settings=self.training_settings
         )
 
         self.agent = DQN(
@@ -75,6 +78,7 @@ class Trainer(object):
             exploration_decay=self.exploration_decay,
             exploration_min=self.exploration_min,
             exploration_max=self.exploration_max,
+            use_gpu=training_settings.use_gpu,
             gamma=self.gamma
         )
 
@@ -139,6 +143,10 @@ class Trainer(object):
 
         return action_no
 
+    def log(self, *args, **kwargs):
+        if self.verbose:
+            print(*args, **kwargs)
+
     def train(self):
         state = self.env.reset()
         state = np.expand_dims(state, axis=0)
@@ -146,10 +154,15 @@ class Trainer(object):
         best_score = -float('inf')
         ma_score = 0
 
-        # self.env.simulate_time = True
+        simulate_time = self.env.simulate_time
+        self.env.simulate_time = True
+
         # fill up memory before training starts
         while self.agent.memory.length() < self.episode_buffer_size:
-            action_no = self.agent.act(state, illegal_actions=self.env.get_illegal_actions())
+            action_no = self.agent.act(
+                state, illegal_actions=self.env.get_illegal_actions()
+            )
+
             next_state, reward, done, game_info = self.env.step(
                 self.env.action_space[action_no]
             )
@@ -162,7 +175,7 @@ class Trainer(object):
             ))
             state = next_state
 
-        # self.env.simulate_time = False
+        self.env.simulate_time = simulate_time
         pbar = tqdm(range(self.episodes))
 
         for e in pbar:
@@ -177,32 +190,40 @@ class Trainer(object):
             pooled_transition: Optional[Transition] = None
 
             while not done:
-                if not TrainingSettings.IS_MANUAL_CONTROL:
+                q_values = None
+
+                if not self.training_settings.IS_MANUAL_CONTROL:
                     # Q-learning Model Picking of Action
                     if pooled_transition is None:
                         # continue with previous movement
-                        action_no = self.agent.act(
+                        action_no, q_values = self.agent.get_action(
                             state, illegal_actions=self.env.get_illegal_actions()
                         )
-                        # print('ACT', self.env.to_action(action_no))
+                        self.log('ACT', self.env.to_action(action_no))
                     else:
+                        last_action = self.env.to_action(last_action_no)
+                        assert last_action != self.env.BOMB
                         action_no = last_action_no
-                        # print('WAIT', self.env.to_action(action_no))
+                        self.log('REPEAT', self.env.to_action(action_no))
                 else:
-                    assert TrainingSettings.IS_MANUAL_CONTROL
+                    assert self.training_settings.IS_MANUAL_CONTROL
                     action_no = self.get_manual_action_no()
 
                 action = self.env.to_action(action_no)
+                if action == self.env.BOMB:
+                    pass
+
                 step_result = self.env.step(action)
                 next_state, reward, done, game_info = step_result
                 next_state = np.expand_dims(next_state, axis=0)
 
                 transition = Transition(
                     state=state, action=action_no, reward=reward,
-                    next_state=next_state, done=done
+                    next_state=next_state, done=done,
+                    q_values=q_values
                 )
 
-                if TrainingSettings.POOL_TRANSITIONS:
+                if self.training_settings.POOL_TRANSITIONS:
                     flush = done or (action_no == self.env.BOMB)
                     if flush:
                         self.agent.remember(transition)
@@ -212,11 +233,13 @@ class Trainer(object):
                         time_passed = step - last_pooled_step
 
                         if flush or (time_passed >= self.pool_duration):
-                            pooled_transition.next_state = state
+                            pooled_transition.next_state = next_state
+                            pooled_transition.next_q_values = q_values
                             pooled_transition.reward = pooled_rewards
                             self.agent.remember(pooled_transition)
                             pooled_transition = None
-                    else:
+
+                    elif action != self.env.BOMB:
                         pooled_rewards = reward
                         pooled_transition = transition
                         last_pooled_step = step

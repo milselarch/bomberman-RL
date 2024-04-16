@@ -16,6 +16,9 @@ class Bomb:
         self.sectors = []
         self.get_range(grid_map)
 
+    def is_player_bomb(self):
+        return self.bomber.is_player()
+
     @property
     def time_waited(self):
         # time waited since being planted

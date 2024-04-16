@@ -36,3 +36,6 @@ class Incentives(object):
     PLACE_BOMB_CONSIDER_ENEMY_COUNT_INF_RANGE: float = 0
     PLACE_BOMB_CONSIDER_ENEMY_COUNT_MISS_BY_ONE: float = 0
     PLACE_BOMB_CONSIDER_ENEMY_COUNT_IN_SQUARE: float = 0
+    BOMB_DEATH_DISTANCE_PENALTY: float = 0
+    # penalizes placing the first bomb in the spawn area
+    FIRST_CORNER_BOMB_PENALTY: float = 0

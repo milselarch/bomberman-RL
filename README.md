@@ -10,14 +10,20 @@ Learning to play bomberman using reinforcement learning with PyTorch
 `python -m pip install -r requirements.txt`
 
 ### Run Instructions
-1. Activate environment and go to `src` directory  
-`source venv/bin/activate && cd src`
-2. Create config file  
+1. Activate environment
+`source venv/bin/activate`
+2. Create config file from template
 `cp config.example.py config.py`
 3. Run training  
-`python training.py`
+`python training.py`  
+
+Model weight checkpoints are stored in the `saves` directory, 
+while tensorboard logs are stored in `logs` directory. The checkpoints / 
+tensorboard logs for both will be created in a subdirectory in `saves` / `logs`
+named `ddqn-<timestamp>` where `timestamp` is timestamp that `training.py`
+was executed, in `YYMMDD-hhmm` format.
 
 ### View tensorboard logs
 1. `tensorboard --logdir <LOG_DIR>`  
 example: 
-`tensorboard --logdir src/logs/ddqn-240401-2155`
+`tensorboard --logdir logs/ddqn-240401-2155`
