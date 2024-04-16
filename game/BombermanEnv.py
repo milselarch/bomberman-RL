@@ -720,15 +720,15 @@ class BombermanEnv(object):
         boxGridCoords = self.getGridCoordsContainingValue({GridValues.BOX_GRID_VAL})
         # print("boxes", boxGridCoords)
         for box in boxGridCoords:
-            res["box_gravity"] += self.aStarPowerDistance(1, 1, box, coords)
+            res["box_gravity"] += self.aStarGravity(1, 1, box, coords)
 
         enemyGridCoords = self.getGridCoordsContainingValue({GridValues.ENEMY_GRID_VAL})
         # print("enemies", enemyGridCoords)
         for enemy in enemyGridCoords:
-            res["enemy_gravity"] += self.aStarPowerDistance(1, 5, enemy, (coords[0], coords[1]))
+            res["enemy_gravity"] += self.aStarSigmoid(1, 5, enemy, (coords[0], coords[1]))
 
         if self.currentTargetEnemy is not None:
-            res ["target_enemy_gravity"] += self.manhattanPowerDistance(
+            res ["target_enemy_gravity"] += self.manhattanSigmoid(
                 1,
                 10,
                 self.player.getGridCoords(),
@@ -739,7 +739,6 @@ class BombermanEnv(object):
         # print("bombs", bombGridCoords)
         for bomb in self.bombs:
             bombCoords = bomb.getGridCoords()
-            timeElapsed = bomb.time - bomb.time_waited
             res["bomb_gravity"] += self.manhattanPowerDistance(1, 10, bombCoords, (coords[0], coords[1]))
 
         return res

@@ -223,6 +223,20 @@ class Trainer(object):
                 )
 
                 if self.training_settings.POOL_TRANSITIONS:
+                    """
+                    It takes 4 steps of movement in the same direction
+                    to transition from on grid cell to another. So we
+                    pool movement transitions. to make it easier for the
+                    agent to execute grid-cell-by-grid-cell movement
+                    
+                    The pooling process consists of setting the next_state
+                    to be the next_state of the last individual transition,
+                    setting pooled transition reward to be the sum of all 
+                    the rewards received in the individual transitions, and
+                    repeating the same action that was played at the start 
+                    of the pooled transition without invoking the DQN network 
+                    for the rest of individual transitions. 
+                    """
                     flush = done or (action_no == self.env.BOMB)
                     if flush:
                         self.agent.remember(transition)
