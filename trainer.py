@@ -78,6 +78,7 @@ class Trainer(object):
             exploration_decay=self.exploration_decay,
             exploration_min=self.exploration_min,
             exploration_max=self.exploration_max,
+            use_gpu=training_settings.use_gpu,
             gamma=self.gamma
         )
 

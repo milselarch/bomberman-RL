@@ -10,9 +10,9 @@ Learning to play bomberman using reinforcement learning with PyTorch
 `python -m pip install -r requirements.txt`
 
 ### Run Instructions
-1. Activate environment and go to `src` directory  
-`source venv/bin/activate && cd src`
-2. Create config file  
+1. Activate environment
+`source venv/bin/activate`
+2. Create config file from template
 `cp config.example.py config.py`
 3. Run training  
 `python training.py`  
