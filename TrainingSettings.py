@@ -101,3 +101,15 @@ class TrainingSettings(object):
 
     # whether to run the model using GPU
     use_gpu: bool = True
+    """
+    whether to simulate the passage of time between physics updates
+    or actually wait between physics updates to match physics_fps
+    setting simulate_time should simulate the game faster
+    """
+    simulate_time: bool = True
+    # physics simulation rate per second
+    # ignored if simulate_time is True
+    physics_fps: int = 15
+    # UI render frame rate per second
+    render_fps: int = 15
+

@@ -17,10 +17,12 @@ from astar import find_path
 
 from TrainingSettings import TrainingSettings, PresetGrid
 
+
 def manhattanDistance(startGridCoords, endGridCoords):
     xDist = abs(endGridCoords[0] - startGridCoords[0])
     yDist = abs(endGridCoords[1] - startGridCoords[1])
     return xDist + yDist
+
 
 GRID_BASE = np.array(PresetGrid(PresetGrid.PresetGridSelect.SELECT_GRID_BASE_LIST).grid)
 
@@ -37,10 +39,9 @@ class BombermanEnv(object):
 
     def __init__(
         self, surface, path, player_alg, en1_alg, en2_alg,
-        en3_alg, scale, physics_fps: int = 15, render_fps: int = 15,
-        simulate_time: bool = False, incentives: Incentives = Incentives(),
+        en3_alg, scale, incentives: Incentives = Incentives(), 
+        training_settings: TrainingSettings = TrainingSettings(),
         max_steps: int = 3000,
-        training_settings: TrainingSettings = TrainingSettings()
     ):
         """
         :param surface:
@@ -59,9 +60,9 @@ class BombermanEnv(object):
         :param incentives:
         """
         self.incentives = incentives
-        self.physics_fps = physics_fps
-        self.render_fps = render_fps
-        self.simulate_time = simulate_time
+        self.physics_fps = training_settings.physics_fps
+        self.render_fps = training_settings.render_fps
+        self.simulate_time = training_settings.simulate_time
         self.training_settings = training_settings
         self.max_steps = max_steps
 
@@ -740,6 +741,7 @@ class BombermanEnv(object):
             bombCoords = bomb.getGridCoords()
             timeElapsed = bomb.time - bomb.time_waited
             res["bomb_gravity"] += self.manhattanPowerDistance(1, 10, bombCoords, (coords[0], coords[1]))
+
         return res
 
     def getGridStateAsSectors(self):
@@ -1248,7 +1250,7 @@ class BombermanEnv(object):
                 self.player.bomb_limit -= 1
 
                 placeBomBNow = self.considerPlacingBombNow()
-                print(placeBomBNow)
+                # print(placeBomBNow)
                 reward += placeBomBNow["boxCount"] * I.PLACE_BOMB_CONSIDER_BOX_COUNT
                 reward += placeBomBNow["enemyCount"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT
                 reward += placeBomBNow["enemyCountIfInfiniteRange"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_INF_RANGE
@@ -1358,7 +1360,7 @@ class BombermanEnv(object):
             self.clear_player_from_grid()
 
         self._score += reward
-        print(reward)
+        # print(reward)
         return (
             self.get_normalised_state(), reward,
             self.is_game_ended(), self.player_moving

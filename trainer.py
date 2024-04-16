@@ -66,8 +66,7 @@ class Trainer(object):
             self.surface, self.show_path, self.player_alg,
             self.en1_alg, self.en2_alg, self.en3_alg,
             self.tile_size, incentives=incentives,
-            simulate_time=True, physics_fps=15,
-            render_fps=15, training_settings=self.training_settings
+            training_settings=self.training_settings
         )
 
         self.agent = DQN(
