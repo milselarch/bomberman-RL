@@ -18,10 +18,10 @@ from astar import find_path
 from TrainingSettings import TrainingSettings, PresetGrid
 
 
-def manhattanDistance(startGridCoords, endGridCoords):
-    xDist = abs(endGridCoords[0] - startGridCoords[0])
-    yDist = abs(endGridCoords[1] - startGridCoords[1])
-    return xDist + yDist
+def manhattan_distance(start_grid_coords, end_grid_coords):
+    x_dist = abs(end_grid_coords[0] - start_grid_coords[0])
+    y_dist = abs(end_grid_coords[1] - start_grid_coords[1])
+    return x_dist + y_dist
 
 
 GRID_BASE = np.array(PresetGrid(PresetGrid.PresetGridSelect.SELECT_GRID_BASE_LIST).grid)
@@ -39,7 +39,7 @@ class BombermanEnv(object):
 
     def __init__(
         self, surface, path, player_alg, en1_alg, en2_alg,
-        en3_alg, scale, incentives: Incentives = Incentives(), 
+        en3_alg, scale, incentives: Incentives = Incentives(),
         training_settings: TrainingSettings = TrainingSettings(),
         max_steps: int = 3000,
     ):
@@ -315,7 +315,17 @@ class BombermanEnv(object):
         """ This is just generating destroyable boxes if I am not wrong. """
         ####################################################################
 
-        hardcoded = {(3, 7), (5, 4), (3, 10), (5, 7), (9, 5), (5, 10), (8, 3), (10, 6), (9, 8), (8, 6), (10, 3), (1, 6), (2, 5), (2, 8), (7, 4), (7, 1), (7, 7), (6, 8), (4, 5), (3, 9), (4, 8), (5, 9), (9, 1), (8, 5), (10, 2), (9, 4), (9, 10), (8, 8), (10, 5), (2, 7), (10, 8), (6, 1), (1, 8), (6, 4), (7, 9), (6, 7), (7, 6), (4, 7), (4, 4), (8, 4), (9, 9), (8, 7), (10, 4), (10, 1), (10, 7), (10, 10), (1, 7), (2, 6), (6, 6), (7, 5), (6, 3), (6, 9), (7, 8)}
+        hardcoded = {
+            (3, 7), (5, 4), (3, 10), (5, 7), (9, 5), (5, 10),
+            (8, 3), (10, 6), (9, 8), (8, 6), (10, 3), (1, 6),
+            (2, 5), (2, 8), (7, 4), (7, 1), (7, 7), (6, 8),
+            (4, 5), (3, 9), (4, 8), (5, 9), (9, 1), (8, 5),
+            (10, 2), (9, 4), (9, 10), (8, 8), (10, 5), (2, 7),
+            (10, 8), (6, 1), (1, 8), (6, 4), (7, 9), (6, 7),
+            (7, 6), (4, 7), (4, 4), (8, 4), (9, 9), (8, 7),
+            (10, 4), (10, 1), (10, 7), (10, 10), (1, 7), (2, 6),
+            (6, 6), (7, 5), (6, 3), (6, 9), (7, 8)
+        }
 
         for x,y in hardcoded:
             self.grid[x][y] = GridValues.BOX_GRID_VAL
@@ -470,40 +480,59 @@ class BombermanEnv(object):
             player_destroyed_boxes=player_destroyed_boxes
         )
 
-    def check_escape_route_recursive(self, x, y, distFromBomb, isSameX, isSameY, isIncreaseX, isIncreaseY) -> bool:
-        gridVal = self.grid[x][y] # Use grid and not grid_state here as grid has only bombs, walls and boxes values.
-        if gridVal >= 1 and gridVal <= 3:
+    def check_escape_route_recursive(
+        self, x, y, dist_from_bomb, is_same_x,
+        is_same_y, is_increase_x, is_increase_y
+    ) -> bool:
+        # Use grid and not grid_state here as grid has only bombs,
+        # walls and boxes values.
+        grid_val = self.grid[x][y]
+        if 1 <= grid_val <= 3:
             # Wall is 1, Box is 2, Bomb is 3
             return False
-        elif distFromBomb > self.player.range:
-            # Check if this grid is out of bomb range and is not wall, box or bomb. If so, there might be a possible an escape route
+
+        elif dist_from_bomb > self.player.range:
+            # Check if this grid is out of bomb range and
+            # is not wall, box or bomb. If so, there might be
+            # a possible an escape route
             return True
         else:
-            return self.grid[x + 1][y] == 0 or self.grid[x - 1][y] == 0 or \
-                    self.grid[x][y + 1] == 0 or self.grid[x][y - 1] == 0 or \
-                    self.check_escape_route_recursive(x + (0 if isSameX else 1 if isIncreaseX else -1),
-                                                y + (0 if isSameY else 1 if isIncreaseY else -1),
-                                                distFromBomb = distFromBomb + 1,
-                                                isSameX = isSameX,
-                                                isSameY = isSameY,
-                                                isIncreaseX = isIncreaseX,
-                                                isIncreaseY = isIncreaseY)
+            return (
+                self.grid[x + 1][y] == 0 or self.grid[x - 1][y] == 0 or
+                self.grid[x][y + 1] == 0 or self.grid[x][y - 1] == 0 or
+                self.check_escape_route_recursive(
+                    x + (0 if is_same_x else 1 if is_increase_x else -1),
+                    y + (0 if is_same_y else 1 if is_increase_y else -1),
+                    dist_from_bomb=dist_from_bomb + 1,
+                    is_same_x=is_same_x,
+                    is_same_y=is_same_y,
+                    is_increase_x=is_increase_x,
+                    is_increase_y=is_increase_y
+                )
+            )
 
     def check_if_put_bomb_have_escape(self):
-        playerGridPosX = int(self.player.pos_x / Player.TILE_SIZE)
-        playerGridPosY = int(self.player.pos_y / Player.TILE_SIZE)
-        return (self.check_escape_route_recursive(playerGridPosX + 1, playerGridPosY, 0,
-                                                isSameX = False, isSameY = True, 
-                                                isIncreaseX = True, isIncreaseY = False) or
-                self.check_escape_route_recursive(playerGridPosX - 1, playerGridPosY, 0,
-                                                isSameX = False, isSameY = True, 
-                                                isIncreaseX = False, isIncreaseY = False) or
-                self.check_escape_route_recursive(playerGridPosX, playerGridPosY + 1, 0,
-                                                isSameX = True, isSameY = False, 
-                                                isIncreaseX = False, isIncreaseY = True) or
-                self.check_escape_route_recursive(playerGridPosX, playerGridPosY - 1, 0,
-                                                isSameX = True, isSameY = False, 
-                                                isIncreaseX = False, isIncreaseY = False))
+        player_grid_pos_x = int(self.player.pos_x / Player.TILE_SIZE)
+        player_grid_pos_y = int(self.player.pos_y / Player.TILE_SIZE)
+        return (
+            self.check_escape_route_recursive(
+                player_grid_pos_x + 1, player_grid_pos_y, 0,
+                is_same_x= False, is_same_y= True,
+                is_increase_x= True, is_increase_y= False
+            ) or self.check_escape_route_recursive(
+                player_grid_pos_x - 1, player_grid_pos_y, 0,
+                is_same_x= False, is_same_y= True,
+                is_increase_x= False, is_increase_y= False
+            ) or self.check_escape_route_recursive(
+                player_grid_pos_x, player_grid_pos_y + 1, 0,
+                is_same_x= True, is_same_y= False,
+                is_increase_x= False, is_increase_y= True
+            ) or self.check_escape_route_recursive(
+                player_grid_pos_x, player_grid_pos_y - 1, 0,
+                is_same_x= True, is_same_y= False,
+                is_increase_x= False, is_increase_y= False
+            )
+        )
 
     # def getEnemyAtGridCoord(self, coord):
     #     for enemy in self.enemy_list:
@@ -511,59 +540,68 @@ class BombermanEnv(object):
     #             return enemy
     #     return None
 
-    def targetEnemy(self):
-        enemyGridCoords = [(enemy.getGridCoords(), enemy) for enemy in self.enemy_list]
-        # enemyGridCoords = self.getGridCoordsContainingValue({GridValues.ENEMY_GRID_VAL})
-        minDist = np.inf
+    def target_enemy(self):
+        enemy_grid_coords = [
+            (enemy.getGridCoords(), enemy)
+            for enemy in self.enemy_list
+        ]
+        min_dist = np.inf
         target = None
-        hasUnobstructedPath = False
+        has_unobstructed_path = False
 
-        # # Always prefer an enemy to which you have an unobstructed path
-        for enemyGridCoord, enemy in enemyGridCoords:
-            d = self.aStarDistance(self.player.getGridCoords(), enemyGridCoord)
+        # Always prefer an enemy to which you have
+        # an unobstructed path
+        for enemy_grid_coord, enemy in enemy_grid_coords:
+            d = self.a_star_distance(
+                self.player.get_grid_coords(), enemy_grid_coord
+            )
             if d != np.inf:
-                hasUnobstructedPath = True
-                if d < minDist:
-                    minDist = d
+                has_unobstructed_path = True
+                if d < min_dist:
+                    min_dist = d
                     target = enemy
 
         # Else, go by manhattan distance
-        if not hasUnobstructedPath:
-            for enemyGridCoord, enemy in enemyGridCoords:
-                d = manhattanDistance(self.player.getGridCoords(), enemyGridCoord)
-                if d < minDist:
-                    minDist = d
+        if not has_unobstructed_path:
+            for enemy_grid_coord, enemy in enemy_grid_coords:
+                d = manhattan_distance(
+                    self.player.get_grid_coords(), enemy_grid_coord
+                )
+                if d < min_dist:
+                    min_dist = d
                     target = enemy
 
         return target
 
-    def stepInDirection(self, startGridCoords, direction):
+    def step_in_direction(self, start_grid_coords, direction):
         """
-        Simple utility function. Get coordinates of square in the direction of the start square.
+        Simple utility function. Get coordinates of square
+        in the direction of the start square.
         e.g. searchDirection([x, y], "left") --> [x-1, y]
 
-        WARNING!!! If exceeding map dimensions, just returns the starting coordinates unchanged.
+        WARNING!!! If exceeding map dimensions, just returns
+        the starting coordinates unchanged.
         """
-        res = startGridCoords
+        res = start_grid_coords
         max_x_dim = self.grid_state.shape[0]
         max_y_dim = self.grid_state.shape[1]
         match direction:
             case "left":
-                res = (max(0, startGridCoords[0] - 1), startGridCoords[1])
+                res = (max(0, start_grid_coords[0] - 1), start_grid_coords[1])
             case "right":
-                res = (min(max_x_dim, startGridCoords[0] + 1), startGridCoords[1])
+                res = (min(max_x_dim, start_grid_coords[0] + 1), start_grid_coords[1])
             case "up":
-                res = (startGridCoords[0], max(0, startGridCoords[1] - 1))
+                res = (start_grid_coords[0], max(0, start_grid_coords[1] - 1))
             case "down":
-                res = (startGridCoords[0], min(max_y_dim, startGridCoords[1] + 1))
+                res = (start_grid_coords[0], min(max_y_dim, start_grid_coords[1] + 1))
         return res
 
-    def getPotentialBombSectors(self, coords, explosionRange):
+    def get_potential_bomb_sectors(self, coords, explosionRange):
         sectors = {coords}
         for direction in ["left", "right", "up", "down"]:
             pos = coords
             for _ in range(explosionRange):
-                pos = self.stepInDirection(pos, direction)
+                pos = self.step_in_direction(pos, direction)
                 match self.grid_state[pos[0], pos[1]]:
                     case (
                         GridValues.EMPTY_GRID_VAL
@@ -577,18 +615,18 @@ class BombermanEnv(object):
                         break
         return sectors
 
-    def getPeripheryOfSectors(self, sectors):
+    def get_periphery_of_sectors(self, sectors):
         allAdjacentSectors = set()
         for sector in sectors:
             # use a set to eliminate duplicates if stepInDirection() is next to map border
             adjacentSectors = {
-                self.stepInDirection(sector, direction)
+                self.step_in_direction(sector, direction)
                 for direction in ["left", "right", "up", "down"]
             }
             allAdjacentSectors.update(adjacentSectors)
         return allAdjacentSectors.difference(set(sectors))
 
-    def getFilledBoundingBoxOfSectors(self, sectors):
+    def get_filled_bounding_box_of_sectors(self, sectors):
         maxX = maxY = 0
         minX = minY = max(self.grid.shape[1], self.grid.shape[0])
         for sector in sectors:
@@ -598,8 +636,8 @@ class BombermanEnv(object):
             minY = min(minY, sector[1])
         return {(x, y) for x in range(minX, maxX + 1) for y in range(minY, maxY + 1)}
 
-    def considerPlacingBombNow(self):
-        statsIfPlaceBombNow = {
+    def consider_placing_bomb_now(self):
+        stats_if_place_bomb_now = {
             "boxCount": 0,
             "enemyCount": 0,
             "enemyCountIfInfiniteRange": 0,
@@ -607,47 +645,47 @@ class BombermanEnv(object):
             "enemyCountWithinSquare": 0,
         }
 
-        boxCoords = self.getGridCoordsContainingValue({GridValues.BOX_GRID_VAL})
-        enemyCoords = [enemy.getGridCoords() for enemy in self.enemy_list]
-        potentialSectors = self.getPotentialBombSectors(
-            self.player.getGridCoords(), self.player.range
+        box_coords = self.get_grid_coords_containing_value({GridValues.BOX_GRID_VAL})
+        enemy_coords = [enemy.getGridCoords() for enemy in self.enemy_list]
+        potential_sectors = self.get_potential_bomb_sectors(
+            self.player.get_grid_coords(), self.player.range
         )
         # print("boxes", boxCoords)
         # print("enemies", enemyCoords)
 
         # print("pot", potentialSectors)
-        for coord in boxCoords:
-            if coord in potentialSectors:
-                statsIfPlaceBombNow["boxCount"] += 1
-        for coord in enemyCoords:
-            if coord in potentialSectors:
-                statsIfPlaceBombNow["enemyCount"] += 1
+        for coord in box_coords:
+            if coord in potential_sectors:
+                stats_if_place_bomb_now["boxCount"] += 1
+        for coord in enemy_coords:
+            if coord in potential_sectors:
+                stats_if_place_bomb_now["enemyCount"] += 1
 
-        potentialSectorsInfiniteRange = self.getPotentialBombSectors(
-            self.player.getGridCoords(), max(self.grid.shape[1], self.grid.shape[0])
+        potential_sectors_infinite_range = self.get_potential_bomb_sectors(
+            self.player.get_grid_coords(), max(self.grid.shape[1], self.grid.shape[0])
         )
         # print("infinite", potentialSectorsInfiniteRange)
-        for coord in enemyCoords:
-            if coord in potentialSectorsInfiniteRange:
-                statsIfPlaceBombNow["enemyCountIfInfiniteRange"] += 1
+        for coord in enemy_coords:
+            if coord in potential_sectors_infinite_range:
+                stats_if_place_bomb_now["enemyCountIfInfiniteRange"] += 1
 
-        potentialSectorsMissByOne = self.getPeripheryOfSectors(potentialSectors)
+        potential_sectors_miss_by_one = self.get_periphery_of_sectors(potential_sectors)
         # print("missbyone", potentialSectorsMissByOne)
-        for coord in enemyCoords:
-            if coord in potentialSectorsMissByOne:
-                statsIfPlaceBombNow["enemyCountMissByOne"] += 1
+        for coord in enemy_coords:
+            if coord in potential_sectors_miss_by_one:
+                stats_if_place_bomb_now["enemyCountMissByOne"] += 1
 
-        potentialSectorsWithinSquare = self.getFilledBoundingBoxOfSectors(
-            potentialSectors
+        potential_sectors_within_square = self.get_filled_bounding_box_of_sectors(
+            potential_sectors
         )
         # print("square", potentialSectorsWithinSquare)
-        for coord in enemyCoords:
-            if coord in potentialSectorsWithinSquare:
-                statsIfPlaceBombNow["enemyCountWithinSquare"] += 1
+        for coord in enemy_coords:
+            if coord in potential_sectors_within_square:
+                stats_if_place_bomb_now["enemyCountWithinSquare"] += 1
 
-        return statsIfPlaceBombNow
+        return stats_if_place_bomb_now
 
-    def getGridCoordsContainingValue(self, targetValues):
+    def get_grid_coords_containing_value(self, targetValues):
         width = self.grid.shape[0]
         height = self.grid.shape[1]
         res = []
@@ -657,58 +695,76 @@ class BombermanEnv(object):
                     res.append((x,y))
         return res
 
-    def aStarPowerDistance(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
-        G = 1.5
-        aStarPath = self.aStar(entity1GridCoords, entity2GridCoords)
-        if not aStarPath:
+    def a_star_power_distance(self, entity1_mass, entity2_mass, entity1_grid_coords, entity2_grid_coords):
+        gravity = 1.5
+        a_star_path = self.a_star(entity1_grid_coords, entity2_grid_coords)
+        if not a_star_path:
             return 0
 
-        aStarDistance = len(aStarPath)
-        return (G**(aStarDistance))
+        a_star_distance = len(a_star_path)
+        return gravity ** a_star_distance
 
-    def aStarSigmoid(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
-        G = 1
-        aStarPath = self.aStar(entity1GridCoords, entity2GridCoords)
-        if not aStarPath:
+    def a_star_sigmoid(self, entity1_mass, entity2_mass, entity1_grid_coords, entity2GridCoords):
+        gravity = 1
+        a_star_path = self.a_star(entity1_grid_coords, entity2GridCoords)
+        if not a_star_path:
             return 0
 
-        aStarDistance = len(aStarPath)
-        return (G * entity1Mass * entity2Mass) / (1+np.e**(aStarDistance+10))
+        a_star_distance = len(a_star_path)
+        return (gravity * entity1_mass * entity2_mass) / (1 + np.e ** (a_star_distance + 10))
 
-    def aStarGravity(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
-        G = 100
-        aStarPath = self.aStar(entity1GridCoords, entity2GridCoords)
+    def a_star_gravity(self, entity1_mass, entity2_mass, entity1_grid_coords, entity2GridCoords):
+        gravity = 100
+        a_star_path = self.a_star(entity1_grid_coords, entity2GridCoords)
         # print(aStarPath)
-        if not aStarPath:
+        if not a_star_path:
             return 0
 
-        aStarDistance = len(aStarPath)
+        a_star_distance = len(a_star_path)
         # if aStarDistance == 0:
         #     aStarDistance = 0.1
-        return (G * entity1Mass * entity2Mass) / (aStarDistance**2)
+        return (gravity * entity1_mass * entity2_mass) / (a_star_distance ** 2)
 
-    def manhattanPowerDistance(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
-        G = 1.5
-        manhattan = manhattanDistance(entity1GridCoords, entity2GridCoords)
+    @staticmethod
+    def manhattan_power_distance(
+        entity1_mass, entity2_mass, entity1_grid_coords, entity2_grid_coords
+    ):
+        gravity = 1.5
+        manhattan = manhattan_distance(
+            entity1_grid_coords, entity2_grid_coords
+        )
+
         if manhattan == 0:
             manhattan = 0.1
-        return (G**(manhattan))
 
-    def manhattanSigmoid(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
-        G = 100
-        manhattan = manhattanDistance(entity1GridCoords, entity2GridCoords)
+        return gravity ** manhattan
+
+    @staticmethod
+    def manhattan_sigmoid(entity1_mass, entity2_mass, entity1_grid_coords, entity2_grid_coords):
+        gravity = 100
+        manhattan = manhattan_distance(entity1_grid_coords, entity2_grid_coords)
         if manhattan == 0:
             manhattan = 0.1
-        return (G * entity1Mass * entity2Mass) / (1+np.e**(manhattan+1))
+        return (gravity * entity1_mass * entity2_mass) / (1 + np.e ** (manhattan + 1))
 
-    def manhattanGravity(self, entity1Mass, entity2Mass, entity1GridCoords, entity2GridCoords):
-        G = 100
-        manhattan = manhattanDistance(entity1GridCoords, entity2GridCoords)
+    @staticmethod
+    def manhattan_gravity(
+        entity1_mass, entity2_mass, entity1_grid_coords,
+        entity2_grid_coords
+    ):
+        gravity = 100
+        manhattan = manhattan_distance(
+            entity1_grid_coords, entity2_grid_coords
+        )
         if manhattan == 0:
             manhattan = 0.1
-        return (G * entity1Mass * entity2Mass) / (manhattan**2)
 
-    def getGridCoordIncentiveDict(self):
+        return (
+            (gravity * entity1_mass * entity2_mass) /
+            (manhattan ** 2)
+        )
+
+    def get_grid_coord_incentive_dict(self):
         res = {
             "box_gravity": 0,
             "enemy_gravity": 0,
@@ -716,65 +772,72 @@ class BombermanEnv(object):
             "bomb_gravity": 0,
         }
 
-        coords = self.player.getGridCoords()
-        boxGridCoords = self.getGridCoordsContainingValue({GridValues.BOX_GRID_VAL})
+        coords = self.player.get_grid_coords()
+        box_grid_coords = self.get_grid_coords_containing_value({
+            GridValues.BOX_GRID_VAL
+        })
         # print("boxes", boxGridCoords)
-        for box in boxGridCoords:
-            res["box_gravity"] += self.aStarGravity(1, 1, box, coords)
+        for box in box_grid_coords:
+            res["box_gravity"] += self.a_star_gravity(
+                1, 1, box, coords
+            )
 
-        enemyGridCoords = self.getGridCoordsContainingValue({GridValues.ENEMY_GRID_VAL})
+        enemy_grid_coords = self.get_grid_coords_containing_value({
+            GridValues.ENEMY_GRID_VAL
+        })
         # print("enemies", enemyGridCoords)
-        for enemy in enemyGridCoords:
-            res["enemy_gravity"] += self.aStarSigmoid(1, 5, enemy, (coords[0], coords[1]))
+        for enemy in enemy_grid_coords:
+            res["enemy_gravity"] += self.a_star_sigmoid(
+                1, 5, enemy, (coords[0], coords[1])
+            )
 
         if self.currentTargetEnemy is not None:
-            res ["target_enemy_gravity"] += self.manhattanSigmoid(
+            res ["target_enemy_gravity"] += self.manhattan_sigmoid(
                 1,
                 10,
-                self.player.getGridCoords(),
-                self.currentTargetEnemy.getGridCoords()
+                self.player.get_grid_coords(),
+                self.currentTargetEnemy.get_grid_coords()
             )
 
         # bombGridCoords = self.getGridCoordsContainingValue({GridValues.BOMB_GRID_VAL})
         # print("bombs", bombGridCoords)
         for bomb in self.bombs:
-            bombCoords = bomb.getGridCoords()
-            res["bomb_gravity"] += self.manhattanPowerDistance(1, 10, bombCoords, (coords[0], coords[1]))
+            bomb_coords = bomb.getGridCoords()
+            res["bomb_gravity"] += self.manhattan_power_distance(1, 10, bomb_coords, (coords[0], coords[1]))
 
         return res
 
-    def getGridStateAsSectors(self):
+    def get_grid_state_as_sectors(self):
         return {(x, y) for x in range(self.grid.shape[0]) for y in range(self.grid.shape[1])}
 
-    def getNeighbours(self, coords):
+    def get_neighbours(self, coords):
         res = {
-            self.stepInDirection(coords, direction)
+            self.step_in_direction(coords, direction)
             for direction in ["left", "right", "up", "down"]
         }
         return res
 
-    def aStar(self, start, goal):
-        freeSectors = self.getGridCoordsContainingValue(
+    def a_star(self, start, goal):
+        free_sectors = self.get_grid_coords_containing_value(
             {GridValues.EMPTY_GRID_VAL, GridValues.PLAYER_GRID_VAL}
         )
 
-        notFreeSectors = self.getGridStateAsSectors().difference(freeSectors)
+        not_free_sectors = self.get_grid_state_as_sectors().difference(free_sectors)
 
         # if (start in notFreeSectors) or (goal in notFreeSectors):
         #     return None
 
-        def getNeighboursNotWalls(coords):
-            res = self.getNeighbours(coords).difference(notFreeSectors)
+        def get_neighbours_not_walls(coords):
+            res = self.get_neighbours(coords).difference(not_free_sectors)
             return res
 
         # print(start, goal)
         # print(self.grid_state.T)
         path = find_path(
-            start=start,
-            goal=goal,
-            neighbors_fnct=getNeighboursNotWalls,
+            start=start, goal=goal,
+            neighbors_fnct=get_neighbours_not_walls,
             reversePath=False,
-            heuristic_cost_estimate_fnct=manhattanDistance,
+            heuristic_cost_estimate_fnct=manhattan_distance,
             distance_between_fnct=lambda a, b: 1,
             is_goal_reached_fnct=lambda a, b: a == b,
         )
@@ -786,77 +849,52 @@ class BombermanEnv(object):
             # print(list(path))
             return list(path)
 
-    # def aStar(self, start, goal):
-    #     indestructibleSectors = self.getGridCoordsContainingValue(
-    #         {GridValues.WALL_GRID_VAL}
-    #     )
+    def a_star_distance(self, start, goal):
+        a_star_path = self.a_star(start, goal)
+        return len(a_star_path) if a_star_path is not None else np.inf
 
-    #     if (start in indestructibleSectors) or (goal in indestructibleSectors):
-    #         return None
-
-    #     def getNeighboursNotWalls(coords):
-    #         res = self.getNeighbours(coords).difference(indestructibleSectors)
-    #         return res
-
-    #     # print(start, goal)
-    #     # print(self.grid_state.T)
-    #     path = find_path(
-    #         start=start,
-    #         goal=goal,
-    #         neighbors_fnct=getNeighboursNotWalls,
-    #         reversePath=False,
-    #         heuristic_cost_estimate_fnct=manhattanDistance,
-    #         distance_between_fnct=lambda a, b: 1,
-    #         is_goal_reached_fnct=lambda a, b: a == b,
-    #     )
-    #     # print(list(path))
-
-    #     return list(path)
-
-    def aStarDistance(self, start, goal):
-        aStarPath = self.aStar(start, goal)
-        return len(aStarPath) if aStarPath is not None else np.inf
-
-    def squareIsWalkable(self, coord):
+    def square_is_walkable(self, coord):
         match self.grid_state[coord[0], coord[1]]:
             case GridValues.EMPTY_GRID_VAL | GridValues.PLAYER_GRID_VAL | 8:
                 return True
             case _:
                 return False
 
-    def getConnectedWalkableSquares(self, startGridCoordinate):
+    def get_connected_walkable_squares(self, start_grid_coordinate):
         """
         Get all the walkable squares that are connected to an entity at startCoordinate.
         Uses flood fill algorithm; easy to overflow recursion but should be ok for our small map size
         """
 
-        def floodFill(s, coord):
+        def flood_fill(s, coord):
             # no need to check if map dimensions exceeded, since stepInDirection
             # will just return the same coord, which should already be in s
-            tupCoord = (coord[0], coord[1])  # for hashability to add to set
+            tup_coord = (coord[0], coord[1])  # for hashability to add to set
 
             walkable = False
-            notyet = False
-            if self.squareIsWalkable(coord):
+            not_yet = False
+            if self.square_is_walkable(coord):
                 walkable = True
             # else:
             #     print("NOT WALKABLE:", coord)
 
-            if tupCoord not in s:
-                notyet = True
+            if tup_coord not in s:
+                not_yet = True
             # else:
             #     print("ALREADY:", tupCoord)
 
-            if walkable and notyet:
-                s.add(tupCoord)
+            if walkable and not_yet:
+                s.add(tup_coord)
                 for direction in ["left", "right", "up", "down"]:
-                    floodFill(s, self.stepInDirection(coord, direction))
+                    flood_fill(
+                        s, self.step_in_direction(coord, direction)
+                    )
 
-        connectedWalkableSquares = set()
-        floodFill(connectedWalkableSquares, startGridCoordinate)
-        return connectedWalkableSquares
+        connected_walkable_squares = set()
+        flood_fill(connected_walkable_squares, start_grid_coordinate)
+        return connected_walkable_squares
 
-    def getLeftoverWalkableSquares(self):
+    def get_leftover_walkable_squares(self):
         """
         Check if player has enough empty space to get away from the bombs that they set themselves.
 
@@ -864,14 +902,14 @@ class BombermanEnv(object):
 
         This is meant to help see if the player has put a bomb in such a way that there is no way for themselves to escape.
         """
-        playersBombs = [bomb for bomb in self.bombs if bomb.bomber.is_player()]
-        bombSectors = [
+        players_bombs = [bomb for bomb in self.bombs if bomb.bomber.is_player()]
+        bomb_sectors = [
             (sectors[0], sectors[1])
-            for bomb in playersBombs
+            for bomb in players_bombs
             for sectors in bomb.sectors
         ]
-        walkableSquares = self.getConnectedWalkableSquares(self.player.getGridCoords())
-        leftoverWalkableSquares = set(walkableSquares).difference(set(bombSectors))
+        walkable_squares = self.get_connected_walkable_squares(self.player.get_grid_coords())
+        leftover_walkable_squares = set(walkable_squares).difference(set(bomb_sectors))
         # if len(walkableSquares) > 0:
         #     print(walkableSquares)
         # else:
@@ -881,14 +919,14 @@ class BombermanEnv(object):
         #     print("WALKABLE:", set(walkableSquares))
         #     print("BOMBSECTORS:", set(bombSectors))
         #     print("LEFTOVER:", leftoverWalkableSquares)
-        return leftoverWalkableSquares
+        return leftover_walkable_squares
 
-    def checkIfPlayerTrappedThemselves(self):
-        playersBombs = [bomb for bomb in self.bombs if bomb.bomber.is_player()]
-        if len(playersBombs) == 0:
+    def check_if_player_trapped_themselves(self):
+        players_bombs = [bomb for bomb in self.bombs if bomb.bomber.is_player()]
+        if len(players_bombs) == 0:
             return False
 
-        return len(self.getLeftoverWalkableSquares()) == 0
+        return len(self.get_leftover_walkable_squares()) == 0
 
     def check_if_in_bomb_range(self):
         player_pos_x = self.player.pos_x
@@ -913,8 +951,8 @@ class BombermanEnv(object):
         return False
 
     def check_if_walking_to_bomb_range(self):
-        playerPosX = self.player.pos_x
-        playerPosY = self.player.pos_y
+        player_pos_x = self.player.pos_x
+        player_pos_y = self.player.pos_y
 
         if not self.player_in_bomb_range:
             for bomb in self.bombs:
@@ -922,11 +960,11 @@ class BombermanEnv(object):
                 bomb.sectors array stores all positions that the bomb
                 explosion would hit.
                 """
-                for explosionFieldCoords in bomb.sectors:
-                    x, y = explosionFieldCoords
+                for explosion_field_coords in bomb.sectors:
+                    x, y = explosion_field_coords
                     in_bomb_range = (
-                        int(playerPosX / Player.TILE_SIZE) == x and
-                        int(playerPosY / Player.TILE_SIZE) == y
+                        int(player_pos_x / Player.TILE_SIZE) == x and
+                        int(player_pos_y / Player.TILE_SIZE) == y
                     )
 
                     if in_bomb_range:
@@ -968,8 +1006,8 @@ class BombermanEnv(object):
         return False
 
     def check_if_waiting_beside_bomb_range(self, action):
-        grid_x = int(self.player.pos_x / Player.TILE_SIZE)
-        grid_y = int(self.player.pos_y / Player.TILE_SIZE)
+        grid_x = self.player.grid_x
+        grid_y = self.player.grid_y
         top_pos = (grid_x, grid_y - 1)
         bottom_pos = (grid_x, grid_y + 1)
         left_pos = (grid_x - 1, grid_y)
@@ -1103,11 +1141,11 @@ class BombermanEnv(object):
             bottom in obstacle_grid_values and
             left in obstacle_grid_values and
             right in obstacle_grid_values
-        ) 
+        )
 
     def get_illegal_actions(self):
         illegal_actions = []
-        
+
         if self.training_settings.IS_CHECKING_ILLEGAL_ACTION:
             player_pos_x = self.player.pos_x
             player_pos_y = self.player.pos_y
@@ -1130,7 +1168,7 @@ class BombermanEnv(object):
                 illegal_actions.append(self.action_space_idx_map[self.UP])
 
             if bottom in obstacle_grid_values:
-                illegal_actions.append(self.action_space_idx_map[self.DOWN]) 
+                illegal_actions.append(self.action_space_idx_map[self.DOWN])
 
             if left in obstacle_grid_values:
                 illegal_actions.append(self.action_space_idx_map[self.LEFT])
@@ -1206,7 +1244,7 @@ class BombermanEnv(object):
                     self.player_moving_action = ''
 
                 # print('ACT', self.player_moving_action, [action])
-            
+
                 if self.player_moving:
                     # Storing Destination Grid Coordinates in Grid
                     self.player_next_grid_pos_x = int(
@@ -1230,6 +1268,7 @@ class BombermanEnv(object):
                         self.player_next_grid_pos_y = None
                         self.player_moving = False
                         self.player_moving_action = ''
+
             elif at_destination:
                 # If current grid coordinates of player
                 # is same as destination grid coordinates,
@@ -1299,13 +1338,14 @@ class BombermanEnv(object):
                 # self.grid_state[x][y] = GridValues.BOMB_GRID_VAL
                 self.player.bomb_limit -= 1
 
-                placeBomBNow = self.considerPlacingBombNow()
+                place_bomb_rewards = self.consider_placing_bomb_now()
                 # print(placeBomBNow)
-                reward += placeBomBNow["boxCount"] * I.PLACE_BOMB_CONSIDER_BOX_COUNT
-                reward += placeBomBNow["enemyCount"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT
-                reward += placeBomBNow["enemyCountIfInfiniteRange"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_INF_RANGE
-                reward += placeBomBNow["enemyCountMissByOne"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_MISS_BY_ONE
-                reward += placeBomBNow["enemyCountWithinSquare"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_IN_SQUARE
+                reward += place_bomb_rewards["boxCount"] * I.PLACE_BOMB_CONSIDER_BOX_COUNT
+                reward += place_bomb_rewards["enemyCount"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT
+                reward += place_bomb_rewards["enemyCountIfInfiniteRange"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_INF_RANGE
+                reward += place_bomb_rewards["enemyCountMissByOne"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_MISS_BY_ONE
+                reward += place_bomb_rewards["enemyCountWithinSquare"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_IN_SQUARE
+
                 if ((x, y) == (1, 1)) and (self.player_bombs_planted == 0):
                     reward += I.FIRST_CORNER_BOMB_PENALTY
 
@@ -1348,13 +1388,13 @@ class BombermanEnv(object):
         # MOVING_TO_DEST_GRID_PENALTY = 1000
 
         if not self.FLAG_checkIfPlayerTrappedThemselves:
-            if self.checkIfPlayerTrappedThemselves():
+            if self.check_if_player_trapped_themselves():
                 self.FLAG_checkIfPlayerTrappedThemselves = True
 
         self.lifeDurationCounter += 1
 
         if self.gridCoordIncentiveTick == 0:
-            gcid = self.getGridCoordIncentiveDict()
+            gcid = self.get_grid_coord_incentive_dict()
             # print(gcid)
             reward += gcid["box_gravity"] * I.BOX_GRAVITY
             reward += gcid["enemy_gravity"] * I.ENEMY_GRAVITY
@@ -1364,7 +1404,7 @@ class BombermanEnv(object):
         else:
             self.gridCoordIncentiveTick -= 1
 
-        self.currentTargetEnemy = self.targetEnemy()
+        self.currentTargetEnemy = self.target_enemy()
 
         if action == self.BOMB and has_dropped_bomb:
             if self.check_if_put_bomb_have_escape():

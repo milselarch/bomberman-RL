@@ -1,14 +1,9 @@
-import os
-from typing import Optional
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
-
 import pygame
 import numpy as np
 import tensorflow as tf
 
 from tqdm import tqdm
+from typing import Optional
 from game.Incentives import Incentives
 from Transition import Transition
 from collections import deque
@@ -102,14 +97,16 @@ class Trainer(object):
     def get_manual_action_no(self) -> int:
         ####################################################################################
         ####################################################################################
-        ''' NOTE: DO NOT REMOVE
-            NOTE: Use manual player game control ONLY to check if rewards are truly working
-                OR perhaps for pre-training before letting the model choose on its own.
+        """
+        :return:
+        NOTE: DO NOT REMOVE
+        NOTE: Use manual player game control ONLY to check if rewards are truly working
+            OR perhaps for pre-training before letting the model choose on its own.
 
-                - Arrow keys to move
-                - 'Space' for bomb
-                - 'w' for wait
-        '''
+            - Arrow keys to move
+            - 'Space' for bomb
+            - 'w' for wait
+        """
         ####################################################################################
         action_no = 5
         pygame.event.clear()

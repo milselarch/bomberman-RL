@@ -195,7 +195,7 @@ class Player(Actor):
         self.animation.append(back)
         self.animation.append(left)
 
-    def getGridCoords(self):
+    def get_grid_coords(self):
         grid_x_pos = int(self.pos_x / self.TILE_SIZE)
         grid_y_pos = int(self.pos_y / self.TILE_SIZE)
         return (grid_x_pos, grid_y_pos)
