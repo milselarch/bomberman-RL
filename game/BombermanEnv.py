@@ -103,7 +103,6 @@ class BombermanEnv(object):
             self.UP, self.DOWN, self.LEFT, self.RIGHT,
             self.BOMB, self.WAIT
         ]
-
         self.action_space_idx_map = {
             self.action_space[k]: k for k in range(len(self.action_space))
         }
@@ -542,7 +541,7 @@ class BombermanEnv(object):
 
     def target_enemy(self):
         enemy_grid_coords = [
-            (enemy.getGridCoords(), enemy)
+            (enemy.get_grid_coords(), enemy)
             for enemy in self.enemy_list
         ]
         min_dist = np.inf
@@ -646,7 +645,7 @@ class BombermanEnv(object):
         }
 
         box_coords = self.get_grid_coords_containing_value({GridValues.BOX_GRID_VAL})
-        enemy_coords = [enemy.getGridCoords() for enemy in self.enemy_list]
+        enemy_coords = [enemy.get_grid_coords() for enemy in self.enemy_list]
         potential_sectors = self.get_potential_bomb_sectors(
             self.player.get_grid_coords(), self.player.range
         )
@@ -799,10 +798,8 @@ class BombermanEnv(object):
                 self.currentTargetEnemy.get_grid_coords()
             )
 
-        # bombGridCoords = self.getGridCoordsContainingValue({GridValues.BOMB_GRID_VAL})
-        # print("bombs", bombGridCoords)
         for bomb in self.bombs:
-            bomb_coords = bomb.getGridCoords()
+            bomb_coords = bomb.get_grid_coords()
             res["bomb_gravity"] += self.manhattan_power_distance(1, 10, bomb_coords, (coords[0], coords[1]))
 
         return res
@@ -896,11 +893,11 @@ class BombermanEnv(object):
 
     def get_leftover_walkable_squares(self):
         """
-        Check if player has enough empty space to get away from the bombs that they set themselves.
-
-        WARNING!!! Only checks for bombs that the player sets for themselves.
-
-        This is meant to help see if the player has put a bomb in such a way that there is no way for themselves to escape.
+        Check if player has enough empty space to get away
+        from the bombs that they set themselves.
+        WARNING!!! Only checks for bombs that the  player sets for themselves.
+        This is meant to help see if the player has put a bomb in such
+        a way that there is no way for themselves to escape.
         """
         players_bombs = [bomb for bomb in self.bombs if bomb.bomber.is_player()]
         bomb_sectors = [
@@ -910,15 +907,6 @@ class BombermanEnv(object):
         ]
         walkable_squares = self.get_connected_walkable_squares(self.player.get_grid_coords())
         leftover_walkable_squares = set(walkable_squares).difference(set(bomb_sectors))
-        # if len(walkableSquares) > 0:
-        #     print(walkableSquares)
-        # else:
-        #     print("?")
-        # if len(leftoverWalkableSquares) == 0:
-        #     print("PLAYER AT:", self.player.getGridCoords())
-        #     print("WALKABLE:", set(walkableSquares))
-        #     print("BOMBSECTORS:", set(bombSectors))
-        #     print("LEFTOVER:", leftoverWalkableSquares)
         return leftover_walkable_squares
 
     def check_if_player_trapped_themselves(self):
@@ -1212,79 +1200,34 @@ class BombermanEnv(object):
                 self.player.pos_y % tile_size == 0
             )
 
-            if not self.player_moving:
-                assign_action = False
-                self.current_player_direction = self.player.direction
-                self.player_moving = True
+            self.current_player_direction = self.player.direction
+            self.player_moving = True
 
+            self.player_direction_x = 0
+            self.player_direction_y = 0
+            self.player_moving_action = action
+
+            if action == self.DOWN:
+                self.current_player_direction = 0
+                self.player_direction_x = 0
+                self.player_direction_y = 1
+            elif action == self.RIGHT:
+                self.current_player_direction = 1
+                self.player_direction_x = 1
+                self.player_direction_y = 0
+            elif action == self.UP:
+                self.current_player_direction = 2
+                self.player_direction_x = 0
+                self.player_direction_y = -1
+            elif action == self.LEFT:
+                self.current_player_direction = 3
+                self.player_direction_x = -1
+                self.player_direction_y = 0
+            elif action == self.WAIT or action == self.BOMB:
                 self.player_direction_x = 0
                 self.player_direction_y = 0
-                self.player_moving_action = action
-
-                if action == self.DOWN:
-                    self.current_player_direction = 0
-                    self.player_direction_x = 0
-                    self.player_direction_y = 1
-                elif action == self.RIGHT:
-                    self.current_player_direction = 1
-                    self.player_direction_x = 1
-                    self.player_direction_y = 0
-                elif action == self.UP:
-                    self.current_player_direction = 2
-                    self.player_direction_x = 0
-                    self.player_direction_y = -1
-                elif action == self.LEFT:
-                    self.current_player_direction = 3
-                    self.player_direction_x = -1
-                    self.player_direction_y = 0
-                elif action == self.WAIT or action == self.BOMB:
-                    self.player_direction_x = 0
-                    self.player_direction_y = 0
-                    self.player_moving = False
-                    self.player_moving_action = ''
-
-                # print('ACT', self.player_moving_action, [action])
-
-                if self.player_moving:
-                    # Storing Destination Grid Coordinates in Grid
-                    self.player_next_grid_pos_x = int(
-                        self.player.pos_x / Player.TILE_SIZE
-                    ) + self.player_direction_x
-                    self.player_next_grid_pos_y = int(
-                        self.player.pos_y / Player.TILE_SIZE
-                    ) + self.player_direction_y
-
-                    x = self.player_next_grid_pos_x
-                    y = self.player_next_grid_pos_y
-                    grid_val = self.grid[x][y]
-
-                    if (grid_val == 1) or (grid_val == 2) or (grid_val == 3):
-                        # If Destination Grid is a Wall, Destructible Box
-                        # or Bomb, Reset Values to not Force Player to Move
-                        # in that Direction.
-                        self.player_direction_x = 0
-                        self.player_direction_y = 0
-                        self.player_next_grid_pos_x = None
-                        self.player_next_grid_pos_y = None
-                        self.player_moving = False
-                        self.player_moving_action = ''
-
-            elif at_destination:
-                # If current grid coordinates of player
-                # is same as destination grid coordinates,
-                # and position of player are multiples of Player.TILE_SIZE,
-                # THEN reset values
-                assign_action = False
-                self.player_direction_x = 0
-                self.player_direction_y = 0
-                self.player_next_grid_pos_x = None
-                self.player_next_grid_pos_y = None
                 self.player_moving = False
                 self.player_moving_action = ''
-
-                # time.sleep(0.5)
-            else:
-                action = self.player_moving_action
 
             # Move player
             self.player.move(
@@ -1326,7 +1269,9 @@ class BombermanEnv(object):
         reward: float = 0
 
         if action == self.BOMB:
-            if self.player.bomb_limit != 0 and self.player.life:
+            can_plant_bomb = self.player.bomb_limit != 0 and self.player.life
+
+            if can_plant_bomb:
                 has_dropped_bomb = True
                 self.player_in_bomb_range = True
                 player_bomb = self.player.plant_bomb(self.grid)

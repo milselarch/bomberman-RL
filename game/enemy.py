@@ -68,8 +68,8 @@ class Enemy(Actor):
     def grid_y(self) -> int:
         return int(self.pos_y / Enemy.TILE_SIZE)
     
-    def getGridCoords(self):
-        return (self.grid_x, self.grid_y)
+    def get_grid_coords(self):
+        return self.grid_x, self.grid_y
 
     def make_move(self, env_map, bombs, explosions, map_state=None):
         if not self.life:

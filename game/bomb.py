@@ -77,5 +77,5 @@ class Bomb:
     def grid_y(self) -> int:
         return int(self.pos_y / 4)
 
-    def getGridCoords(self):
-        return (self.grid_x, self.grid_y)
+    def get_grid_coords(self):
+        return self.grid_x, self.grid_y

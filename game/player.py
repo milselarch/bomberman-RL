@@ -38,12 +38,12 @@ class Player(Actor):
         tempy = int(self.pos_y / Player.TILE_SIZE)
 
         # map = grid.copy()
-        map = []
+        grid_map = []
 
         for i in range(len(grid)):
-            map.append([])
+            grid_map.append([])
             for j in range(len(grid[i])):
-                map[i].append(grid[i][j])
+                grid_map[i].append(grid[i][j])
 
         for x in enemies:
             if x == self:
@@ -51,7 +51,7 @@ class Player(Actor):
             elif not x.life:
                 continue
             else:
-                map[self.grid_x][self.grid_y] = 2
+                grid_map[self.grid_x][self.grid_y] = 2
 
         if self.pos_x % Player.TILE_SIZE != 0 and dx == 0:
             if self.pos_x % Player.TILE_SIZE == 1:
@@ -68,22 +68,22 @@ class Player(Actor):
 
         # right
         if dx == 1:
-            if map[tempx+1][tempy] == 0:
+            if grid_map[tempx+1][tempy] == 0:
                 self.pos_x += 1
         # left
         elif dx == -1:
             tempx = math.ceil(self.pos_x / Player.TILE_SIZE)
-            if map[tempx-1][tempy] == 0:
+            if grid_map[tempx-1][tempy] == 0:
                 self.pos_x -= 1
 
         # bottom
         if dy == 1:
-            if map[tempx][tempy+1] == 0:
+            if grid_map[tempx][tempy+1] == 0:
                 self.pos_y += 1
         # top
         elif dy == -1:
             tempy = math.ceil(self.pos_y / Player.TILE_SIZE)
-            if map[tempx][tempy-1] == 0:
+            if grid_map[tempx][tempy-1] == 0:
                 self.pos_y -= 1
 
         for pu in power_ups:
@@ -91,8 +91,8 @@ class Player(Actor):
                     and pu.pos_y == math.ceil(self.pos_y / Player.TILE_SIZE):
                 self.consume_power_up(pu, power_ups)
 
-    def plant_bomb(self, map) -> Bomb:
-        b = Bomb(self.range, self.grid_x, self.grid_y, map, self)
+    def plant_bomb(self, grid_map) -> Bomb:
+        b = Bomb(self.range, self.grid_x, self.grid_y, grid_map, self)
         return b
 
     def check_death(self, explosions: List[Explosion]) -> float:
@@ -198,4 +198,5 @@ class Player(Actor):
     def get_grid_coords(self):
         grid_x_pos = int(self.pos_x / self.TILE_SIZE)
         grid_y_pos = int(self.pos_y / self.TILE_SIZE)
-        return (grid_x_pos, grid_y_pos)
+        return grid_x_pos, grid_y_pos
+

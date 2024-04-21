@@ -2,7 +2,6 @@ pygame==2.5.2
 pygame_menu==4.4.3
 matplotlib==3.8.3
 tensorflow==2.12.0
-memory_profiler==0.61.0
 gym==0.26.2
 tqdm==4.66.2
 numpy~=1.23.5

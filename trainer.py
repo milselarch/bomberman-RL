@@ -15,7 +15,6 @@ from dqn import DQN
 
 
 class Trainer(object):
-
     def __init__(
         self, name='ddqn', incentives: Incentives = Incentives(),
         training_settings: TrainingSettings = TrainingSettings(),
