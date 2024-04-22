@@ -1,4 +1,5 @@
 import dataclasses
+
 from enum import IntEnum
 
 
@@ -20,6 +21,7 @@ class PresetGrid:
                 self.grid = PresetGrid.EMPTY_GRID
             case _:
                 pass
+
         self.is_set = self.grid is not None
 
     GRID_BASE_LIST = [
@@ -89,8 +91,12 @@ class TrainingSettings(object):
     # discount factor in Q value estimation equation
     # Q(s) = R + gamma * max(Q(s'))
     gamma: float = 0.9  # 0.975
+
+    # target network update amount
+    target_update_rate = 0.1
     # how many episodes between target Q network updates
-    update_target_every: int = 10
+    update_target_every: int = 100
+    # backprop batch size for DQN network
     episode_buffer_size: int = 256
     # total number of episodes to train for
     episodes: int = 50 * 1000

@@ -278,8 +278,10 @@ class Trainer(object):
                 kill_score -= 1
 
             if e % self.update_target_every == 0:
-                self.agent.update_target_model()
-                print('TARGET MODEL_UPDATED')
+                print('TARGET MODEL_UPDATE')
+                self.agent.soft_update_target_model(
+                    self.training_settings.target_update_rate
+                )
 
             self.write_logs(
                 file_writer=self.t_logs_writer, episode_no=e,

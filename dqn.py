@@ -63,6 +63,19 @@ class DQN:
     def update_target_model(self):
         self.target_model.load_state_dict(self.model.state_dict())
 
+    def soft_update_target_model(self, tau=0.1):
+        # perform a soft update of the target network weights
+        source_net_state_dict = self.model.state_dict()
+        target_net_state_dict = self.target_model.state_dict()
+
+        for key in target_net_state_dict:
+            target_net_state_dict[key] = (
+                source_net_state_dict[key] * tau +
+                target_net_state_dict[key] * (1 - tau)
+            )
+
+        self.target_model.load_state_dict(target_net_state_dict)
+
     def remember(self, transition: Transition):
         if transition.q_values is None:
             q_values = self.get_q_values(transition.state)
