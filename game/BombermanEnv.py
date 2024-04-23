@@ -34,6 +34,23 @@ class UpdateBombsResult(object):
     player_destroyed_boxes: int
 
 
+@dataclass
+class BombPlacementRewards(object):
+    box_count: int = 0
+    enemy_count: int = 0
+    enemy_count_if_infinite_range: int = 0
+    enemy_count_miss_by_one: int = 0
+    enemy_count_within_square: int = 0
+
+    def get_total(self):
+        return (
+            self.box_count + self.enemy_count +
+            self.enemy_count_if_infinite_range +
+            self.enemy_count_miss_by_one +
+            self.enemy_count_within_square
+        )
+
+
 class BombermanEnv(object):
     BACKGROUND_COLOR = (107, 142, 35)
 
@@ -625,7 +642,7 @@ class BombermanEnv(object):
             allAdjacentSectors.update(adjacentSectors)
         return allAdjacentSectors.difference(set(sectors))
 
-    def get_filled_bounding_box_of_sectors(self, sectors):
+    def get_filled_bbox_of_sectors(self, sectors):
         maxX = maxY = 0
         minX = minY = max(self.grid.shape[1], self.grid.shape[0])
         for sector in sectors:
@@ -633,16 +650,17 @@ class BombermanEnv(object):
             maxY = max(maxY, sector[1])
             minX = min(minX, sector[0])
             minY = min(minY, sector[1])
-        return {(x, y) for x in range(minX, maxX + 1) for y in range(minY, maxY + 1)}
 
-    def consider_placing_bomb_now(self):
-        stats_if_place_bomb_now = {
-            "boxCount": 0,
-            "enemyCount": 0,
-            "enemyCountIfInfiniteRange": 0,
-            "enemyCountMissByOne": 0,
-            "enemyCountWithinSquare": 0,
+        return {
+            (x, y) for x in range(minX, maxX + 1)
+            for y in range(minY, maxY + 1)
         }
+
+    def consider_placing_bomb_now(
+        self, incentives: Incentives
+    ) -> BombPlacementRewards:
+        rewards = BombPlacementRewards()
+        I = incentives
 
         box_coords = self.get_grid_coords_containing_value({GridValues.BOX_GRID_VAL})
         enemy_coords = [enemy.get_grid_coords() for enemy in self.enemy_list]
@@ -653,36 +671,52 @@ class BombermanEnv(object):
         # print("enemies", enemyCoords)
 
         # print("pot", potentialSectors)
-        for coord in box_coords:
-            if coord in potential_sectors:
-                stats_if_place_bomb_now["boxCount"] += 1
-        for coord in enemy_coords:
-            if coord in potential_sectors:
-                stats_if_place_bomb_now["enemyCount"] += 1
 
-        potential_sectors_infinite_range = self.get_potential_bomb_sectors(
-            self.player.get_grid_coords(), max(self.grid.shape[1], self.grid.shape[0])
-        )
-        # print("infinite", potentialSectorsInfiniteRange)
-        for coord in enemy_coords:
-            if coord in potential_sectors_infinite_range:
-                stats_if_place_bomb_now["enemyCountIfInfiniteRange"] += 1
+        if I.PLACE_BOMB_CONSIDER_BOX_COUNT != 0:
+            for coord in box_coords:
+                if coord in potential_sectors:
+                    rewards.box_count += I.PLACE_BOMB_CONSIDER_BOX_COUNT
 
-        potential_sectors_miss_by_one = self.get_periphery_of_sectors(potential_sectors)
-        # print("missbyone", potentialSectorsMissByOne)
-        for coord in enemy_coords:
-            if coord in potential_sectors_miss_by_one:
-                stats_if_place_bomb_now["enemyCountMissByOne"] += 1
+        if I.PLACE_BOMB_CONSIDER_ENEMY_COUNT != 0:
+            for coord in enemy_coords:
+                if coord in potential_sectors:
+                    rewards.enemy_count += I.PLACE_BOMB_CONSIDER_ENEMY_COUNT
 
-        potential_sectors_within_square = self.get_filled_bounding_box_of_sectors(
-            potential_sectors
-        )
-        # print("square", potentialSectorsWithinSquare)
-        for coord in enemy_coords:
-            if coord in potential_sectors_within_square:
-                stats_if_place_bomb_now["enemyCountWithinSquare"] += 1
+        if I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_INF_RANGE != 0:
+            potential_sectors_inf_range = self.get_potential_bomb_sectors(
+                self.player.get_grid_coords(),
+                max(self.grid.shape[1], self.grid.shape[0])
+            )
+            # print("infinite", potentialSectorsInfiniteRange)
+            for coord in enemy_coords:
+                if coord in potential_sectors_inf_range:
+                    rewards.enemy_count_if_infinite_range += (
+                        I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_INF_RANGE
+                    )
 
-        return stats_if_place_bomb_now
+        if I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_MISS_BY_ONE != 0:
+            potential_sectors_miss_by_one = self.get_periphery_of_sectors(
+                potential_sectors
+            )
+            # print("miss_by_one", potentialSectorsMissByOne)
+            for coord in enemy_coords:
+                if coord in potential_sectors_miss_by_one:
+                    rewards.enemy_count_miss_by_one += (
+                        I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_MISS_BY_ONE
+                    )
+
+        if I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_IN_SQUARE != 0:
+            potential_sectors_within_square = self.get_filled_bbox_of_sectors(
+                potential_sectors
+            )
+            # print("square", potentialSectorsWithinSquare)
+            for coord in enemy_coords:
+                if coord in potential_sectors_within_square:
+                    rewards.enemy_count_within_square += (
+                        I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_IN_SQUARE
+                    )
+
+        return rewards
 
     def get_grid_coords_containing_value(self, targetValues):
         width = self.grid.shape[0]
@@ -1283,13 +1317,9 @@ class BombermanEnv(object):
                 # self.grid_state[x][y] = GridValues.BOMB_GRID_VAL
                 self.player.bomb_limit -= 1
 
-                place_bomb_rewards = self.consider_placing_bomb_now()
+                place_bomb_rewards = self.consider_placing_bomb_now(I)
                 # print(placeBomBNow)
-                reward += place_bomb_rewards["boxCount"] * I.PLACE_BOMB_CONSIDER_BOX_COUNT
-                reward += place_bomb_rewards["enemyCount"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT
-                reward += place_bomb_rewards["enemyCountIfInfiniteRange"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_INF_RANGE
-                reward += place_bomb_rewards["enemyCountMissByOne"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_MISS_BY_ONE
-                reward += place_bomb_rewards["enemyCountWithinSquare"] * I.PLACE_BOMB_CONSIDER_ENEMY_COUNT_IN_SQUARE
+                reward += place_bomb_rewards.get_total()
 
                 if ((x, y) == (1, 1)) and (self.player_bombs_planted == 0):
                     reward += I.FIRST_CORNER_BOMB_PENALTY
