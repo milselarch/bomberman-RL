@@ -73,6 +73,7 @@ class Trainer(object):
             exploration_max=self.exploration_max,
             use_gpu=training_settings.use_gpu,
             gamma=self.gamma
+
         )
 
     @staticmethod

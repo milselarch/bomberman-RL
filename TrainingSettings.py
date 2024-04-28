@@ -119,3 +119,6 @@ class TrainingSettings(object):
     # UI render frame rate per second
     render_fps: int = 15
 
+    # whether to randomly flip input states
+    randomize_flip_batch: bool = False
+

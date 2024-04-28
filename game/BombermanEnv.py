@@ -1,10 +1,12 @@
 import random
 import time
+
 import numpy as np
 import pygame
 # import matplotlib.pyplot as plt
 
-from typing import List, Tuple
+from typing import List
+from strenum import StrEnum
 from dataclasses import dataclass
 from game.GridValues import GridValues
 from game.Incentives import Incentives
@@ -24,7 +26,31 @@ def manhattan_distance(start_grid_coords, end_grid_coords):
     return x_dist + y_dist
 
 
-GRID_BASE = np.array(PresetGrid(PresetGrid.PresetGridSelect.SELECT_GRID_BASE_LIST).grid)
+GRID_BASE = np.array(PresetGrid(
+    PresetGrid.PresetGridSelect.SELECT_GRID_BASE_LIST
+).grid)
+
+
+class Actions(StrEnum):
+    UP = 'U'
+    DOWN = 'D'
+    LEFT = 'L'
+    RIGHT = 'R'
+    BOMB = 'BOMB'
+    WAIT = 'WAIT'
+
+    @classmethod
+    def get_all_actions(cls):
+        return tuple([
+             action for action in cls.__members__.values()
+        ])
+
+    def to_index(self):
+        return self.get_all_actions().index(self)
+
+    @classmethod
+    def from_index(cls, index: int):
+        return cls.get_all_actions()[index]
 
 
 @dataclass
@@ -68,9 +94,6 @@ class BombermanEnv(object):
         :param en2_alg:
         :param en3_alg:
         :param scale:
-        :param physics_fps: physics update rate
-        :param render_fps: game UI update rate
-        :param simulate_time:
         whether to simulate the passage of time between physics updates
         or actually wait between physics updates to match physics_fps
         setting simulate_time should simulate the game faster
@@ -83,7 +106,7 @@ class BombermanEnv(object):
         self.training_settings = training_settings
         self.max_steps = max_steps
 
-        # cumulative sum of rewards recieved throughout the game
+        # cumulative sum of rewards received throughout the game
         self._score: float = 0.0
         self.game_time_passed: int = 0  # time passed in milliseconds
         self.last_update_stamp: float = -float('inf')
@@ -109,22 +132,7 @@ class BombermanEnv(object):
         self.n = len(self.grid[0])
         self.state_shape = (8, self.m, self.n, 1)
 
-        self.UP = 'U'
-        self.DOWN = 'D'
-        self.LEFT = 'L'
-        self.RIGHT = 'R'
-        self.BOMB = 'Bomb'
-        self.WAIT = 'Wait'
-
-        self.action_space = [
-            self.UP, self.DOWN, self.LEFT, self.RIGHT,
-            self.BOMB, self.WAIT
-        ]
-        self.action_space_idx_map = {
-            self.action_space[k]: k for k in range(len(self.action_space))
-        }
-
-        self.action_space_size = len(self.action_space)
+        self.action_space_size = len(Actions.get_all_actions())
         self.actions_shape = (self.action_space_size,)
         self.clock = pygame.time.Clock()
         self._game_ended = False
@@ -248,11 +256,12 @@ class BombermanEnv(object):
     def get_score(self) -> float:
         return self._score
 
-    def to_action(self, action_no: int) -> str:
-        return self.action_space[action_no]
+    @staticmethod
+    def to_action(action_no: int) -> Actions:
+        return Actions.from_index(action_no)
 
     def is_move_action_no(self, action_no: int) -> bool:
-        move_actions = [self.UP, self.DOWN, self.LEFT, self.RIGHT]
+        move_actions = [Actions.UP, Actions.DOWN, Actions.LEFT, Actions.RIGHT]
         return self.to_action(action_no) in move_actions
 
     def draw(self):
@@ -1035,7 +1044,7 @@ class BombermanEnv(object):
         left_pos = (grid_x - 1, grid_y)
         right_pos = (grid_x + 1, grid_y)
 
-        if not self.player_in_bomb_range and action == self.WAIT:
+        if not self.player_in_bomb_range and action == Actions.WAIT:
             for bomb in self.bombs:
                 """
                 bomb.sectors array stores all positions that
@@ -1065,7 +1074,7 @@ class BombermanEnv(object):
         left_pos = (grid_x - 1, grid_y)
         right_pos = (grid_x + 1, grid_y)
 
-        if not self.player_in_bomb_range and action == self.WAIT:
+        if not self.player_in_bomb_range and action == Actions.WAIT:
             for explosion in self.explosions:
                 """
                 bomb.sectors array stores all positions that
@@ -1120,13 +1129,13 @@ class BombermanEnv(object):
         x = 0
         y = 0
 
-        if action == self.DOWN:
+        if action == Actions.DOWN:
             y = 1
-        elif action == self.RIGHT:
+        elif action == Actions.RIGHT:
             x = 1
-        elif action == self.UP:
+        elif action == Actions.UP:
             y = -1
-        elif action == self.LEFT:
+        elif action == Actions.LEFT:
             x = -1
 
         grid_x = int(player_pos_x / Player.TILE_SIZE)
@@ -1187,19 +1196,16 @@ class BombermanEnv(object):
             ]
 
             if top in obstacle_grid_values:
-                illegal_actions.append(self.action_space_idx_map[self.UP])
-
+                illegal_actions.append(Actions.UP.to_index())
             if bottom in obstacle_grid_values:
-                illegal_actions.append(self.action_space_idx_map[self.DOWN])
-
+                illegal_actions.append(Actions.DOWN.to_index())
             if left in obstacle_grid_values:
-                illegal_actions.append(self.action_space_idx_map[self.LEFT])
-
+                illegal_actions.append(Actions.LEFT.to_index())
             if right in obstacle_grid_values:
-                illegal_actions.append(self.action_space_idx_map[self.RIGHT])
+                illegal_actions.append(Actions.RIGHT.to_index())
 
             if self.player.bomb_limit == 0:
-                illegal_actions.append(self.action_space_idx_map[self.BOMB])
+                illegal_actions.append(Actions.BOMB.to_index())
 
         return illegal_actions
 
@@ -1241,23 +1247,23 @@ class BombermanEnv(object):
             self.player_direction_y = 0
             self.player_moving_action = action
 
-            if action == self.DOWN:
+            if action == Actions.DOWN:
                 self.current_player_direction = 0
                 self.player_direction_x = 0
                 self.player_direction_y = 1
-            elif action == self.RIGHT:
+            elif action == Actions.RIGHT:
                 self.current_player_direction = 1
                 self.player_direction_x = 1
                 self.player_direction_y = 0
-            elif action == self.UP:
+            elif action == Actions.UP:
                 self.current_player_direction = 2
                 self.player_direction_x = 0
                 self.player_direction_y = -1
-            elif action == self.LEFT:
+            elif action == Actions.LEFT:
                 self.current_player_direction = 3
                 self.player_direction_x = -1
                 self.player_direction_y = 0
-            elif action == self.WAIT or action == self.BOMB:
+            elif action == Actions.WAIT or action == Actions.BOMB:
                 self.player_direction_x = 0
                 self.player_direction_y = 0
                 self.player_moving = False
@@ -1302,7 +1308,7 @@ class BombermanEnv(object):
         I: Incentives = self.incentives
         reward: float = 0
 
-        if action == self.BOMB:
+        if action == Actions.BOMB:
             can_plant_bomb = self.player.bomb_limit != 0 and self.player.life
 
             if can_plant_bomb:
@@ -1381,7 +1387,7 @@ class BombermanEnv(object):
 
         self.currentTargetEnemy = self.target_enemy()
 
-        if action == self.BOMB and has_dropped_bomb:
+        if action == Actions.BOMB and has_dropped_bomb:
             if self.check_if_put_bomb_have_escape():
                 reward += I.PUT_BOMB_HAVE_ESCAPE_ROUTE_REWARD
             else:
@@ -1598,7 +1604,7 @@ class BombermanEnv(object):
         #####################################
         """ Just randomly take any action """
         #####################################
-        return np.random.choice(self.action_space)
+        return np.random.choice(Actions.get_all_actions())
 
     @staticmethod
     def max_action(Q, state, actions):
