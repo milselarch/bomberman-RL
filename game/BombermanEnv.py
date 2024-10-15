@@ -1213,7 +1213,7 @@ class BombermanEnv(object):
     def steps(self):
         return self._steps
 
-    def step(self, action):
+    def step(self, action: Actions):
         self._steps += 1
         # print('TICK_FPS', self.tick_fps)
         if self.simulate_time:

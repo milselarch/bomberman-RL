@@ -9,7 +9,7 @@ from Transition import Transition
 from collections import deque
 from datetime import datetime as Datetime
 from enums.algorithm import Algorithm
-from game.BombermanEnv import BombermanEnv
+from game.BombermanEnv import BombermanEnv, Actions
 from TrainingSettings import TrainingSettings
 from dqn import DQN
 
@@ -91,7 +91,9 @@ class Trainer(object):
 
         train_path = self.log_dir + '/training'
         valid_path = self.log_dir + '/validation'
+        # noinspection PyUnresolvedReferences
         self.t_logs_writer = tf.summary.create_file_writer(train_path)
+        # noinspection PyUnresolvedReferences
         self.v_logs_writer = tf.summary.create_file_writer(valid_path)
 
     def get_manual_action_no(self) -> int:
@@ -108,33 +110,32 @@ class Trainer(object):
             - 'w' for wait
         """
         ####################################################################################
-        action_no = 5
         pygame.event.clear()
 
         while True:
             event = pygame.event.wait()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
-                    action_no = self.env.action_space_idx_map[self.env.UP]
+                    action_no = Actions.UP.to_index()
                     break
                 elif event.key == pygame.K_DOWN:
-                    action_no = self.env.action_space_idx_map[self.env.DOWN]
+                    action_no = Actions.DOWN.to_index()
                     break
                 elif event.key == pygame.K_LEFT:
-                    action_no = self.env.action_space_idx_map[self.env.LEFT]
+                    action_no = Actions.LEFT.to_index()
                     break
                 elif event.key == pygame.K_RIGHT:
-                    action_no = self.env.action_space_idx_map[self.env.RIGHT]
+                    action_no = Actions.RIGHT.to_index()
                     break
                 elif event.key == pygame.K_SPACE:
-                    action_no = self.env.action_space_idx_map[self.env.BOMB]
+                    action_no = Actions.BOMB.to_index()
                     break
                 # else:
                 # -- If you wish to not have a choice to wait, but
                 # that the AI would auto-wait if there is no input,
                 #     then uncomment the "else" line and comment out the "elif" line.
                 elif event.key == pygame.K_w:
-                    action_no = self.env.action_space_idx_map[self.env.WAIT]
+                    action_no = Actions.WAIT.to_index()
                     break
 
         return action_no
@@ -160,7 +161,7 @@ class Trainer(object):
             )
 
             next_state, reward, done, game_info = self.env.step(
-                self.env.action_space[action_no]
+                Actions.from_index(action_no)
             )
 
             # Change state shape from (Height, Width) to (Height, Width, 1)
@@ -198,7 +199,7 @@ class Trainer(object):
                         self.log('ACT', self.env.to_action(action_no))
                     else:
                         last_action = self.env.to_action(last_action_no)
-                        assert last_action != self.env.BOMB
+                        assert last_action != Actions.BOMB
                         action_no = last_action_no
                         self.log('REPEAT', self.env.to_action(action_no))
                 else:
@@ -206,7 +207,7 @@ class Trainer(object):
                     action_no = self.get_manual_action_no()
 
                 action = self.env.to_action(action_no)
-                if action == self.env.BOMB:
+                if action == Actions.BOMB:
                     pass
 
                 step_result = self.env.step(action)
@@ -234,7 +235,7 @@ class Trainer(object):
                     of the pooled transition without invoking the DQN network 
                     for the rest of individual transitions. 
                     """
-                    flush = done or (action_no == self.env.BOMB)
+                    flush = done or (action_no == Actions.BOMB)
                     if flush:
                         self.agent.remember(transition)
 
@@ -249,7 +250,7 @@ class Trainer(object):
                             self.agent.remember(pooled_transition)
                             pooled_transition = None
 
-                    elif action != self.env.BOMB:
+                    elif action != Actions.BOMB:
                         pooled_rewards = reward
                         pooled_transition = transition
                         last_pooled_step = step
