@@ -1,5 +1,8 @@
 import dataclasses
 from enum import IntEnum
+from typing import Final
+
+from enums.algorithm import Algorithm
 
 
 class PresetGrid:
@@ -72,7 +75,24 @@ class PresetGrid:
 
 
 @dataclasses.dataclass
-class TrainingSettings(object):
+class EnemyAlgorithmsSettings(object):
+    en1_alg: Algorithm
+    en2_alg: Algorithm
+    en3_alg: Algorithm
+
+
+DEFAULT_ENEMY_ALGORITHMS_SETTINGS: Final = EnemyAlgorithmsSettings(
+    en1_alg=Algorithm.DFS,
+    en2_alg=Algorithm.DIJKSTRA,
+    en3_alg=Algorithm.DFS,
+)
+
+
+@dataclasses.dataclass
+class TrainingSettingsTemplate(object):
+    enemy_settings: EnemyAlgorithmsSettings = (
+        DEFAULT_ENEMY_ALGORITHMS_SETTINGS
+    )
     IS_MANUAL_CONTROL: bool = False
     IS_CHECKING_ILLEGAL_ACTION: bool = True
     PRESET_GRID: PresetGrid = PresetGrid(PresetGrid.PresetGridSelect.NO_PRESET)
@@ -82,7 +102,7 @@ class TrainingSettings(object):
     # exponential decay rate for epsilon-greedy exploration rate
     exploration_decay: float = 0.9995  # 0.95
     # initial exploration rate
-    # (ie. what fraction of actions are initially randomly chose)
+    # (i.e. what fraction of actions is initially randomly chose)
     exploration_max: float = 0.2
     # minimum exploration rate
     exploration_min: float = 0.001  # 0.01

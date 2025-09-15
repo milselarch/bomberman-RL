@@ -5,8 +5,10 @@ try:
     from config import incentives
     from config import training_settings
 except ImportError as e:
-    print('No config module found. '
-          'Copy config.example.py to config.py')
+    print(
+        'No config module found. '
+        'Copy config.example.py to config.py'
+    )
     raise e
 
 if __name__ == '__main__':

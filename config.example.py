@@ -1,5 +1,5 @@
 from game.Incentives import Incentives
-from TrainingSettings import TrainingSettings, PresetGrid
+from settings_template import TrainingSettingsTemplate, PresetGrid
 
 # reward engineering incentives
 incentives = Incentives(
@@ -12,7 +12,7 @@ incentives = Incentives(
 )
 
 # other training hyperparameters
-training_settings = TrainingSettings(
+training_settings = TrainingSettingsTemplate(
     IS_MANUAL_CONTROL=False,
     IS_CHECKING_ILLEGAL_ACTION=True,
     PRESET_GRID=PresetGrid(PresetGrid.PresetGridSelect.NO_PRESET),

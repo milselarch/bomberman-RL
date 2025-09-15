@@ -15,7 +15,7 @@ from game.explosion import Explosion
 from game.bomb import Bomb
 from astar import find_path
 
-from TrainingSettings import TrainingSettings, PresetGrid
+from settings_template import TrainingSettingsTemplate, PresetGrid
 
 
 def manhattanDistance(startGridCoords, endGridCoords):
@@ -38,22 +38,17 @@ class BombermanEnv(object):
     BACKGROUND_COLOR = (107, 142, 35)
 
     def __init__(
-        self, surface, path, player_alg, en1_alg, en2_alg,
-        en3_alg, scale, incentives: Incentives = Incentives(), 
-        training_settings: TrainingSettings = TrainingSettings(),
-        max_steps: int = 3000,
+        self, surface, path, player_alg,
+        scale, max_steps: int = 3000,
+        incentives: Incentives = Incentives(),
+        training_settings: TrainingSettingsTemplate =
+            TrainingSettingsTemplate(),
     ):
         """
         :param surface:
         :param path:
         :param player_alg:
-        :param en1_alg:
-        :param en2_alg:
-        :param en3_alg:
         :param scale:
-        :param physics_fps: physics update rate
-        :param render_fps: game UI update rate
-        :param simulate_time:
         whether to simulate the passage of time between physics updates
         or actually wait between physics updates to match physics_fps
         setting simulate_time should simulate the game faster
@@ -103,7 +98,6 @@ class BombermanEnv(object):
             self.UP, self.DOWN, self.LEFT, self.RIGHT,
             self.BOMB, self.WAIT
         ]
-
         self.action_space_idx_map = {
             self.action_space[k]: k for k in range(len(self.action_space))
         }
@@ -148,9 +142,10 @@ class BombermanEnv(object):
         # self.hasNoDestinationGrid = True
         # self.toDestGridAction = ''
 
-        self.en1_alg = en1_alg
-        self.en2_alg = en2_alg
-        self.en3_alg = en3_alg
+        enemy_algorithms = training_settings.enemy_settings
+        self.en1_alg = enemy_algorithms.en1_alg
+        self.en2_alg = enemy_algorithms.en2_alg
+        self.en3_alg = enemy_algorithms.en3_alg
         self.player_alg = player_alg
 
         if self.en1_alg is not Algorithm.NONE:

@@ -15,7 +15,7 @@ from collections import deque
 from datetime import datetime as Datetime
 from enums.algorithm import Algorithm
 from game.BombermanEnv import BombermanEnv
-from TrainingSettings import TrainingSettings
+from settings_template import TrainingSettingsTemplate
 from dqn import DQN
 
 
@@ -23,7 +23,8 @@ class Trainer(object):
 
     def __init__(
         self, name='ddqn', incentives: Incentives = Incentives(),
-        training_settings: TrainingSettings = TrainingSettings(),
+        training_settings: TrainingSettingsTemplate =
+            TrainingSettingsTemplate(),
     ):
         self.name = name
         self.incentives = incentives
@@ -56,15 +57,11 @@ class Trainer(object):
         self.window_size = (13 * self.tile_size, 13 * self.tile_size)
 
         self.player_alg = Algorithm.PLAYER
-        self.en1_alg = Algorithm.DIJKSTRA
-        self.en2_alg = Algorithm.DFS
-        self.en3_alg = Algorithm.DIJKSTRA
         self.show_path = True
         self.surface = pygame.display.set_mode(self.window_size)
 
         self.env = BombermanEnv(
             self.surface, self.show_path, self.player_alg,
-            self.en1_alg, self.en2_alg, self.en3_alg,
             self.tile_size, incentives=incentives,
             training_settings=self.training_settings
         )

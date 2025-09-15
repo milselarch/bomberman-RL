@@ -15,7 +15,7 @@ class Enemy(Actor):
 
     TILE_SIZE = 4
 
-    def __init__(self, x, y, alg):
+    def __init__(self, x, y, alg: Algorithm):
         super().__init__()
         self.life = True
         self.killed_by_player = False
