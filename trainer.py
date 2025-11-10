@@ -99,14 +99,14 @@ class Trainer(object):
     def get_manual_action_no(self) -> int:
         ####################################################################################
         ####################################################################################
-        ''' NOTE: DO NOT REMOVE
+        """ NOTE: DO NOT REMOVE
             NOTE: Use manual player game control ONLY to check if rewards are truly working
                 OR perhaps for pre-training before letting the model choose on its own.
 
                 - Arrow keys to move
                 - 'Space' for bomb
                 - 'w' for wait
-        '''
+        """
         ####################################################################################
         action_no = 5
         pygame.event.clear()

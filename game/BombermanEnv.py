@@ -1144,6 +1144,9 @@ class BombermanEnv(object):
 
     def step(self, action):
         self._steps += 1
+        I: Incentives = self.incentives
+        reward: float = 0
+
         # print('TICK_FPS', self.tick_fps)
         if self.simulate_time:
             dt = 1000 // self.physics_fps
@@ -1225,6 +1228,7 @@ class BombermanEnv(object):
                         self.player_next_grid_pos_y = None
                         self.player_moving = False
                         self.player_moving_action = ''
+
             elif at_destination:
                 # If current grid coordinates of player
                 # is same as destination grid coordinates,
@@ -1243,10 +1247,16 @@ class BombermanEnv(object):
                 action = self.player_moving_action
 
             # Move player
-            self.player.move(
+            old_position, new_position = self.player.move(
                 self.player_direction_x, self.player_direction_y,
                 self.grid, self.enemy_blocks, self.power_ups
             )
+
+            old_y, old_x = old_position
+            new_y, new_x = new_position
+            dy, dx = new_y - old_y, new_x - old_x
+            reward += I.MOVE_RIGHT_REWARD * dx
+            reward += I.MOVE_DOWN_REWARD * dy
 
             if self.current_player_direction != self.player.direction:
                 self.player.frame = 0
@@ -1277,9 +1287,6 @@ class BombermanEnv(object):
 
         has_dropped_bomb = False
         player_bomb = None
-
-        I: Incentives = self.incentives
-        reward: float = 0
 
         if action == self.BOMB:
             if self.player.bomb_limit != 0 and self.player.life:

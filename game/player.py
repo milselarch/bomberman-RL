@@ -33,17 +33,24 @@ class Player(Actor):
     def grid_y(self):
         return int(self.pos_y / self.TILE_SIZE)
 
-    def move(self, dx, dy, grid, enemies, power_ups):
-        tempx = int(self.pos_x / Player.TILE_SIZE)
-        tempy = int(self.pos_y / Player.TILE_SIZE)
+    @property
+    def grid_position(self) -> tuple[int, int]:
+        return self.grid_y, self.grid_x
+
+    def move(
+        self, dx: int, dy: int, grid, enemies, power_ups
+    ) -> tuple[tuple[int, int], tuple[int, int]]:
+        current_grid_position = self.grid_position
+        temp_x = int(self.pos_x / Player.TILE_SIZE)
+        temp_y = int(self.pos_y / Player.TILE_SIZE)
 
         # map = grid.copy()
-        map = []
+        grid_map = []
 
         for i in range(len(grid)):
-            map.append([])
+            grid_map.append([])
             for j in range(len(grid[i])):
-                map[i].append(grid[i][j])
+                grid_map[i].append(grid[i][j])
 
         for x in enemies:
             if x == self:
@@ -51,48 +58,59 @@ class Player(Actor):
             elif not x.life:
                 continue
             else:
-                map[self.grid_x][self.grid_y] = 2
+                grid_map[self.grid_x][self.grid_y] = 2
 
         if self.pos_x % Player.TILE_SIZE != 0 and dx == 0:
             if self.pos_x % Player.TILE_SIZE == 1:
                 self.pos_x -= 1
             elif self.pos_x % Player.TILE_SIZE == 3:
                 self.pos_x += 1
-            return
+
+            new_grid_position = self.grid_position
+            return current_grid_position, new_grid_position
+
         if self.pos_y % Player.TILE_SIZE != 0 and dy == 0:
             if self.pos_y % Player.TILE_SIZE == 1:
                 self.pos_y -= 1
             elif self.pos_y % Player.TILE_SIZE == 3:
                 self.pos_y += 1
-            return
+
+            new_grid_position = self.grid_position
+            return current_grid_position, new_grid_position
 
         # right
         if dx == 1:
-            if map[tempx+1][tempy] == 0:
+            if grid_map[temp_x+1][temp_y] == 0:
                 self.pos_x += 1
         # left
         elif dx == -1:
-            tempx = math.ceil(self.pos_x / Player.TILE_SIZE)
-            if map[tempx-1][tempy] == 0:
+            temp_x = math.ceil(self.pos_x / Player.TILE_SIZE)
+            if grid_map[temp_x-1][temp_y] == 0:
                 self.pos_x -= 1
 
         # bottom
         if dy == 1:
-            if map[tempx][tempy+1] == 0:
+            if grid_map[temp_x][temp_y+1] == 0:
                 self.pos_y += 1
         # top
         elif dy == -1:
-            tempy = math.ceil(self.pos_y / Player.TILE_SIZE)
-            if map[tempx][tempy-1] == 0:
+            temp_y = math.ceil(self.pos_y / Player.TILE_SIZE)
+            if grid_map[temp_x][temp_y-1] == 0:
                 self.pos_y -= 1
 
         for pu in power_ups:
-            if pu.pos_x == math.ceil(self.pos_x / Player.TILE_SIZE) \
-                    and pu.pos_y == math.ceil(self.pos_y / Player.TILE_SIZE):
+            powerup_consumed = (
+                pu.pos_x == math.ceil(self.pos_x / Player.TILE_SIZE) and
+                pu.pos_y == math.ceil(self.pos_y / Player.TILE_SIZE)
+            )
+            if powerup_consumed:
                 self.consume_power_up(pu, power_ups)
 
-    def plant_bomb(self, map) -> Bomb:
-        b = Bomb(self.range, self.grid_x, self.grid_y, map, self)
+        new_grid_position = self.grid_position
+        return current_grid_position, new_grid_position
+
+    def plant_bomb(self, grid_map) -> Bomb:
+        b = Bomb(self.range, self.grid_x, self.grid_y, grid_map, self)
         return b
 
     def check_death(self, explosions: List[Explosion]) -> float:

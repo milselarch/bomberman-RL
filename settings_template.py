@@ -76,6 +76,8 @@ class PresetGrid:
 
 @dataclasses.dataclass
 class EnemyAlgorithmsSettings(object):
+    # TODO: bugfix where game is done when enemy
+    #  algorithm is NONE for all enemies
     en1_alg: Algorithm
     en2_alg: Algorithm
     en3_alg: Algorithm
