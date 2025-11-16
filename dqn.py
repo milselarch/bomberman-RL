@@ -13,13 +13,14 @@ from PrioritizedReplayBuffer import PrioritizedReplayBuffer
 from ReplayBuffer import ReplayMemory
 
 
-class DQN:
+class DQN(nn.Module):
     def __init__(
-        self, state_shape, action_size: int,
+        self, state_shape: tuple[int], action_size: int,
         learning_rate_max=0.001, gamma=0.75, memory_size=600,
         batch_size=32, exploration_max=1.0, exploration_min=0.01,
         exploration_decay=0.995, use_gpu: bool = True
     ):
+        super().__init__()
         self.state_shape = state_shape
         self.state_tensor_shape = (-1,) + state_shape
         self.action_size = action_size
@@ -109,7 +110,7 @@ class DQN:
         # Return argmax ignoring NaNs.
         return np.nanargmax(q_values[0]), q_values
 
-    def get_q_values(self, state, illegal_actions=None):
+    def get_q_values(self, state, illegal_actions=None) -> np.ndarray:
         if illegal_actions is None:
             illegal_actions = []
 
@@ -117,7 +118,7 @@ class DQN:
         with torch.no_grad():
             raw_prediction = self.model.forward(state)
 
-        prediction = raw_prediction.cpu().numpy()
+        prediction: np.ndarray = raw_prediction.cpu().numpy()
         prediction[0][illegal_actions] = np.nan
         return prediction
 
@@ -193,4 +194,3 @@ class DQN:
             os.makedirs(dirname)
 
         torch.save(self.model.state_dict(), path)
-
