@@ -11,21 +11,12 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
+from cartpole.settings import Settings
+
 """
 Cartpole training example
 https://docs.pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
 """
-
-env = gym.make("CartPole-v1")
-plt.ion()
-
-# if GPU is to be used
-device = torch.device(
-    "cuda" if torch.cuda.is_available() else
-    "mps" if torch.backends.mps.is_available() else
-    "cpu"
-)
-
 
 # To ensure reproducibility during training, you can fix the random seeds
 # by uncommenting the lines below. This makes the results consistent across
@@ -81,46 +72,17 @@ class DQN(nn.Module):
         return self.layer3(x)
 
 
-# BATCH_SIZE is the number of transitions sampled from the replay buffer
-# GAMMA is the discount factor as mentioned in the previous section
-# EPS_START is the starting value of epsilon
-# EPS_END is the final value of epsilon
-# EPS_DECAY controls the rate of exponential decay of epsilon, higher means a slower decay
-# TAU is the update rate of the target network
-# LR is the learning rate of the ``AdamW`` optimizer
-
-BATCH_SIZE = 128
-GAMMA = 0.99
-EPS_START = 0.9
-EPS_END = 0.01
-EPS_DECAY = 2500
-TAU = 0.005
-LR = 3e-4
-
-
-# Get number of actions from gym action space
-n_actions = env.action_space.n
-# Get the number of state observations
-state, info = env.reset()
-n_observations = len(state)
-
-policy_net = DQN(n_observations, n_actions).to(device)
-target_net = DQN(n_observations, n_actions).to(device)
-target_net.load_state_dict(policy_net.state_dict())
-
-optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
-memory = ReplayMemory(10000)
-
-
-steps_done = 0
-
 
 def select_action(state):
     global steps_done
     sample = random.random()
-    eps_threshold = EPS_END + (EPS_START - EPS_END) * \
+    eps_threshold = (
+        EPS_END + (EPS_START - EPS_END) *
         math.exp(-1. * steps_done / EPS_DECAY)
+    )
+
     steps_done += 1
+
     if sample > eps_threshold:
         with torch.no_grad():
             # t.max(1) will return the largest column value of each row.
@@ -159,6 +121,7 @@ def plot_durations(show_result=False):
 def optimize_model():
     if len(memory) < BATCH_SIZE:
         return
+
     transitions = memory.sample(BATCH_SIZE)
     # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
     # detailed explanation). This converts batch-array of Transitions
@@ -167,10 +130,13 @@ def optimize_model():
 
     # Compute a mask of non-final states and concatenate the batch elements
     # (a final state would've been the one after which simulation ended)
-    non_final_mask = torch.tensor(tuple(map(lambda s: s is not None,
-                                          batch.next_state)), device=device, dtype=torch.bool)
-    non_final_next_states = torch.cat([s for s in batch.next_state
-                                                if s is not None])
+    non_final_mask = torch.tensor(
+        tuple(map(lambda s: s is not None, batch.next_state)),
+        device=device, dtype=torch.bool
+    )
+    non_final_next_states = torch.cat([
+        s for s in batch.next_state if s is not None
+    ])
     state_batch = torch.cat(batch.state)
     action_batch = torch.cat(batch.action)
     reward_batch = torch.cat(batch.reward)
@@ -203,50 +169,83 @@ def optimize_model():
     optimizer.step()
 
 
-if torch.cuda.is_available() or torch.backends.mps.is_available():
-    num_episodes = 600
-else:
-    num_episodes = 50
+class Trainer(object):
+    def __init__(self, settings: Settings):
+        self.settings = settings
 
-for i_episode in range(num_episodes):
-    # Initialize the environment and get its state
-    state, info = env.reset()
-    state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
+        self.device = torch.device(
+            "cuda" if torch.cuda.is_available() else
+            "mps" if torch.backends.mps.is_available() else
+            "cpu"
+        )
 
-    for t in count():
-        action = select_action(state)
-        observation, reward, terminated, truncated, _ = env.step(action.item())
-        reward = torch.tensor([reward], device=device)
-        done = terminated or truncated
+        self.env = gym.make("CartPole-v1")
+        # Get number of actions from gym action space
+        self.n_actions = self.env.action_space.n
+        # Get the number of state observations
+        state, info = self.env.reset()
+        n_observations = len(state)
 
-        if terminated:
-            next_state = None
-        else:
-            next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
+        policy_net = DQN(n_observations, self.n_actions).to(device)
+        target_net = DQN(n_observations, self.n_actions).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
 
-        # Store the transition in memory
-        memory.push(state, action, next_state, reward)
+        self.optimizer = optim.AdamW(
+            policy_net.parameters(),
+            lr=self.settings.LR,
+            amsgrad=True
+        )
+        self.memory = ReplayMemory(10000)
+        self.steps_done = 0
 
-        # Move to the next state
-        state = next_state
+        plt.ion()
 
-        # Perform one step of the optimization (on the policy network)
-        optimize_model()
+    def train(self):
+        for i_episode in range(self.settings.num_episodes):
+            # Initialize the environment and get its state
+            state, info = self.env.reset()
+            state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
 
-        # Soft update of the target network's weights
-        # θ′ ← τ θ + (1 −τ )θ′
-        target_net_state_dict = target_net.state_dict()
-        policy_net_state_dict = policy_net.state_dict()
-        for key in policy_net_state_dict:
-            target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
-        target_net.load_state_dict(target_net_state_dict)
+            for t in count():
+                action = select_action(state)
+                observation, reward, terminated, truncated, _ = self.env.step(action.item())
+                reward = torch.tensor([reward], device=device)
+                done = terminated or truncated
 
-        if done:
-            episode_durations.append(t + 1)
-            plot_durations()
-            break
+                if terminated:
+                    next_state = None
+                else:
+                    next_state = torch.tensor(
+                        observation, dtype=torch.float32, device=device
+                    ).unsqueeze(0)
 
-print('Complete')
-plot_durations(show_result=True)
-plt.ioff()
-plt.show()
+                # Store the transition in memory
+                memory.push(state, action, next_state, reward)
+                # Move to the next state
+                state = next_state
+                # Perform one step of the optimization (on the policy network)
+                optimize_model()
+
+                # Soft update of the target network's weights
+                # θ′ ← τ θ + (1 −τ )θ′
+                target_net_state_dict = target_net.state_dict()
+                policy_net_state_dict = policy_net.state_dict()
+                for key in policy_net_state_dict:
+                    target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
+
+                target_net.load_state_dict(target_net_state_dict)
+
+                if done:
+                    episode_durations.append(t + 1)
+                    plot_durations()
+                    break
+
+        print('Complete')
+        plot_durations(show_result=True)
+        plt.ioff()
+        plt.show()
+
+
+if __name__ == '__main__':
+    trainer = Trainer()
+    trainer.train()
