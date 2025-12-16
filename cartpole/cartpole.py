@@ -2,9 +2,11 @@ import gymnasium as gym
 import math
 import random
 import matplotlib.pyplot as plt
+import tensorflow as tf
 
 from collections import namedtuple, deque
 from itertools import count
+from datetime import datetime as Datetime
 
 import torch
 import torch.nn as nn
@@ -76,6 +78,8 @@ class DQN(nn.Module):
 class Trainer(object):
     def __init__(self, settings: Settings):
         self.settings = settings
+        self.date_stamp = self.make_date_stamp()
+
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else
             "mps" if torch.backends.mps.is_available() else
@@ -102,31 +106,27 @@ class Trainer(object):
         self.memory = ReplayMemory(10000)
         self.episode_durations = []
         self.steps_done = 0
-        plt.ion()
 
-    def plot_durations(self, show_result=False):
-        plt.figure(1)
-        durations_t = torch.tensor(
-            self.episode_durations, dtype=torch.float
-        )
+        self.log_dir = None
+        self.model_save_dir = None
+        self.t_logs_writer = None
+        self.v_logs_writer = None
+        self.init_tensorboard()
 
-        if show_result:
-            plt.title('Result')
-        else:
-            plt.clf()
-            plt.title('Training...')
+    def init_tensorboard(self):
+        settings = self.settings
+        dir_save_name = f'{settings.name}-{self.date_stamp}'
+        self.log_dir = f'{settings.logs_dir}/{dir_save_name}'
+        self.model_save_dir = f'{settings.models_save_dir}/{dir_save_name}'
 
-        plt.xlabel('Episode')
-        plt.ylabel('Duration')
-        plt.plot(durations_t.numpy())
+        train_path = self.log_dir + '/training'
+        valid_path = self.log_dir + '/validation'
+        self.t_logs_writer = tf.summary.create_file_writer(train_path)
+        self.v_logs_writer = tf.summary.create_file_writer(valid_path)
 
-        # Take 100 episode averages and plot them too
-        if len(durations_t) >= 100:
-            means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
-            means = torch.cat((torch.zeros(99), means))
-            plt.plot(means.numpy())
-
-        plt.pause(0.001)  # pause a bit so that plots are updated
+    @staticmethod
+    def make_date_stamp():
+        return Datetime.now().strftime("%y%m%d-%H%M")
 
     def select_action(self, state):
         settings = self.settings
@@ -208,7 +208,7 @@ class Trainer(object):
     def train(self):
         settings = self.settings
 
-        for i_episode in range(settings.num_episodes):
+        for episode_no in range(settings.num_episodes):
             # Initialize the environment and get its state
             state, info = self.env.reset()
             state = torch.tensor(
@@ -251,14 +251,12 @@ class Trainer(object):
                 self.target_net.load_state_dict(target_net_state_dict)
 
                 if done:
+                    # TODO: plot this on tensorboard instead
                     self.episode_durations.append(t + 1)
                     self.plot_durations()
                     break
 
         print('Complete')
-        self.plot_durations(show_result=True)
-        plt.ioff()
-        plt.show()
 
 
 if __name__ == '__main__':

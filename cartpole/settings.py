@@ -4,7 +4,6 @@ import dataclasses
 @dataclasses.dataclass
 class Settings(object):
     num_episodes: int = 500
-
     # BATCH_SIZE is the number of transitions sampled from the replay buffer
     BATCH_SIZE = 128
     # GAMMA is the discount factor as mentioned in the previous section
@@ -20,3 +19,6 @@ class Settings(object):
     # LR is the learning rate of the ``AdamW`` optimizer
     LR = 3e-4
 
+    name: str = 'cartpole'
+    logs_dir: str = 'logs'
+    models_save_dir: str = 'saves'
