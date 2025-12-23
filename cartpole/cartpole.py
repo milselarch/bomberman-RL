@@ -1,7 +1,7 @@
 import gymnasium as gym
 import math
+import tqdm
 import random
-import matplotlib.pyplot as plt
 import tensorflow as tf
 
 from collections import namedtuple, deque
@@ -104,7 +104,6 @@ class Trainer(object):
             amsgrad=True
         )
         self.memory = ReplayMemory(10000)
-        self.episode_durations = []
         self.steps_done = 0
 
         self.log_dir = None
@@ -205,17 +204,29 @@ class Trainer(object):
         torch.nn.utils.clip_grad_value_(self.policy_net.parameters(), 100)
         self.optimizer.step()
 
-    def train(self):
-        settings = self.settings
+    @staticmethod
+    def write_logs(
+        file_writer, episode_no: int, score: float
+    ):
+        with file_writer.as_default():
+            tf.summary.scalar(
+                'score', data=score, step=episode_no
+            )
 
-        for episode_no in range(settings.num_episodes):
+    def train(self):
+        print(f'logs written to {self.log_dir}')
+
+        settings = self.settings
+        pbar = tqdm.tqdm(range(settings.num_episodes))
+
+        for episode_no in pbar:
             # Initialize the environment and get its state
             state, info = self.env.reset()
             state = torch.tensor(
                 state, dtype=torch.float32, device=self.device
             ).unsqueeze(0)
 
-            for t in count():
+            for time_step in count():
                 action = self.select_action(state)
                 observation, reward, terminated, truncated, _ = self.env.step(
                     action.item()
@@ -252,8 +263,10 @@ class Trainer(object):
 
                 if done:
                     # TODO: plot this on tensorboard instead
-                    self.episode_durations.append(t + 1)
-                    self.plot_durations()
+                    self.write_logs(
+                        file_writer=self.t_logs_writer,
+                        episode_no=episode_no, score=time_step
+                    )
                     break
 
         print('Complete')
