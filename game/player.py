@@ -3,24 +3,39 @@ from typing import List
 import pygame
 import math
 
+from constants import BLANK_INT
 from game.bomb import Bomb
 from enums.power_up_type import PowerUpType
 from game.Actor import Actor
 from game.explosion import Explosion
+from settings_template import TrainingSettingsTemplate
 
 
 class Player(Actor):
-    pos_x = 4
-    pos_y = 4
+    DEFAULT_POS_X = 4
+    DEFAULT_POS_Y = 4
+
     direction = 0
     frame = 0
     animation = []
     range = 3
     TILE_SIZE = 4
 
-    def __init__(self):
+    def __init__(
+        self, settings: TrainingSettingsTemplate = TrainingSettingsTemplate()
+    ):
         super().__init__()
         self.life = True
+
+        pos_y, pos_x = settings.player_start_pos
+
+        if pos_x == BLANK_INT:
+            pos_x = self.DEFAULT_POS_X
+        if pos_y == BLANK_INT:
+            pos_y = self.DEFAULT_POS_Y
+
+        self.pos_y = pos_y
+        self.pos_x = pos_x
 
     def is_player(self) -> bool:
         return True

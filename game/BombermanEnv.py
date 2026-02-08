@@ -123,7 +123,7 @@ class BombermanEnv(object):
         self.enemies_prev_grid_pos_x = []
         self.enemies_prev_grid_pos_y = []
 
-        self.player = Player()
+        self.player = Player(settings=training_settings)
         self.player_prev_grid_pos_x = self.player.grid_x
         self.player_prev_grid_pos_y = self.player.grid_y
         self.player_bombs_planted = 0

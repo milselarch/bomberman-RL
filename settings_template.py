@@ -2,6 +2,7 @@ import dataclasses
 from enum import IntEnum
 from typing import Final
 
+from constants import BLANK_INT
 from enums.algorithm import Algorithm
 
 
@@ -100,6 +101,8 @@ class TrainingSettingsTemplate(object):
     PRESET_GRID: PresetGrid = PresetGrid(PresetGrid.PresetGridSelect.NO_PRESET)
     POOL_TRANSITIONS: bool = True
 
+    player_start_pos: tuple[int, int] = (BLANK_INT, BLANK_INT)
+
     learning_rate: float = 0.001
     # exponential decay rate for epsilon-greedy exploration rate
     exploration_decay: float = 0.9995  # 0.95
@@ -134,4 +137,3 @@ class TrainingSettingsTemplate(object):
     physics_fps: int = 15
     # UI render frame rate per second
     render_fps: int = 15
-
