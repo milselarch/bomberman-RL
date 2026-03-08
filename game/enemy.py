@@ -1,25 +1,18 @@
 import pygame
 import random
-
-from game.Actor import Actor
-from typing import List, Tuple
-from game.bomb import Bomb
-from game.explosion import Explosion
-from game.node import Node
+from bomb import Bomb
+from node import Node
 from enums.algorithm import Algorithm
-from game.player import Player
 
 
-class Enemy(Actor):
+class Enemy:
+
     dire = [[1, 0, 1], [0, 1, 0], [-1, 0, 3], [0, -1, 2]]
 
     TILE_SIZE = 4
 
-    def __init__(self, x, y, alg: Algorithm):
-        super().__init__()
+    def __init__(self, x, y, alg):
         self.life = True
-        self.killed_by_player = False
-
         self.path = []
         self.movement_path = []
         self.pos_x = x * Enemy.TILE_SIZE
@@ -28,13 +21,12 @@ class Enemy(Actor):
         self.frame = 0
         self.animation = []
         self.range = 3
+        self.bomb_limit = 1
         self.plant = False
         self.algorithm = alg
 
-    def is_player(self) -> bool:
-        return False
+    def move(self, map, bombs, explosions, enemy):
 
-    def move(self, map, bombs, explosions):
         if self.direction == 0:
             self.pos_y += 1
         elif self.direction == 1:
@@ -48,10 +40,9 @@ class Enemy(Actor):
             self.movement_path.pop(0)
             self.path.pop(0)
             if len(self.path) > 1:
-                grid = self.create_grid(map, bombs, explosions, [self])
-                next_coord = self.path[1]
-
-                if grid[next_coord[0]][next_coord[1]] > 1:
+                grid = self.create_grid(map, bombs, explosions, enemy)
+                next = self.path[1]
+                if grid[next[0]][next[1]] > 1:
                     self.movement_path.clear()
                     self.path.clear()
 
@@ -60,81 +51,41 @@ class Enemy(Actor):
         else:
             self.frame += 1
 
-    @property
-    def grid_x(self) -> int:
-        return int(self.pos_x / Enemy.TILE_SIZE)
+    def make_move(self, map, bombs, explosions, enemy):
 
-    @property
-    def grid_y(self) -> int:
-        return int(self.pos_y / Enemy.TILE_SIZE)
-    
-    def getGridCoords(self):
-        return (self.grid_x, self.grid_y)
-
-    def make_move(self, env_map, bombs, explosions, map_state=None):
         if not self.life:
             return
-
         if len(self.movement_path) == 0:
             if self.plant:
-                bombs.append(self.plant_bomb(env_map, map_state))
+                bombs.append(self.plant_bomb(map))
                 self.plant = False
-                env_map[self.grid_x][self.grid_y] = 3
+                map[int(self.pos_x / Enemy.TILE_SIZE)][int(self.pos_y / Enemy.TILE_SIZE)] = 3
             if self.algorithm is Algorithm.DFS:
-                self.dfs(self.create_grid(env_map, bombs, explosions, [self]))
+                self.dfs(self.create_grid(map, bombs, explosions, enemy))
             else:
-                self.dijkstra(self.create_grid_dijkstra(
-                    env_map, bombs, explosions, [self]
-                ))
+                self.dijkstra(self.create_grid_dijkstra(map, bombs, explosions, enemy))
 
         else:
             self.direction = self.movement_path[0]
-            self.move(env_map, bombs, explosions)
+            self.move(map, bombs, explosions, enemy)
 
-    def plant_bomb(self, map, map_state=None):
-        # b = Bomb(self.range, round(self.pos_x / Enemy.TILE_SIZE), round(self.pos_y / Enemy.TILE_SIZE), map, self)
-        
-        bGridX = round(self.pos_x / Enemy.TILE_SIZE)
-        bGridY = round(self.pos_y / Enemy.TILE_SIZE)
-        b = Bomb(self.range, bGridX, bGridY, map, self)
-        
+    def plant_bomb(self, map):
+        b = Bomb(self.range, round(self.pos_x / Enemy.TILE_SIZE), round(self.pos_y / Enemy.TILE_SIZE), map, self)
         self.bomb_limit -= 1
-
-        if map_state is not None:
-            map_state[bGridX][bGridY] += 3
-
         return b
 
-    def check_death(
-        self, explosions: List[Explosion]
-    ) -> Tuple[bool, bool]:
-        """
-        :param explosions: currently ongoing explosions
-        :return:
-        whether enemy was just killed,
-        and whether the explosion was from a player bomb
-        """
-        for e in explosions:
-            # whether the explosion is from a player bomb
-            from_player = isinstance(e.bomber, Player)
+    def check_death(self, exp):
 
-            for bomb_sector in e.sectors:
-                is_in_explosion_path = (
-                    int(self.pos_x / Enemy.TILE_SIZE) == bomb_sector[0] and
-                    int(self.pos_y / Enemy.TILE_SIZE) == bomb_sector[1]
-                )
-
-                if is_in_explosion_path:
+        for e in exp:
+            for s in e.sectors:
+                if int(self.pos_x / Enemy.TILE_SIZE) == s[0] and int(self.pos_y / Enemy.TILE_SIZE) == s[1]:
                     self.life = False
-                    self.killed_by_player = from_player
-                    return True, from_player
-
-        return False, False
+                    return
 
     def dfs(self, grid):
+
         new_path = [[int(self.pos_x / Enemy.TILE_SIZE), int(self.pos_y / Enemy.TILE_SIZE)]]
         depth = 0
-
         if self.bomb_limit == 0:
             self.dfs_rec(grid, 0, new_path, depth)
         else:
@@ -264,7 +215,7 @@ class Enemy(Actor):
             open_list.remove(next_node)
             current = next_node
 
-    def create_grid(self, map, bombs, explosions, enemies):
+    def create_grid(self, map, bombs, explosions, enemys):
         grid = [[0] * len(map) for r in range(len(map))]
 
         # 0 - safe
@@ -289,7 +240,7 @@ class Enemy(Actor):
                 elif map[i][j] == 2:
                     grid[i][j] = 2
 
-        for x in enemies:
+        for x in enemys:
             if x == self:
                 continue
             elif not x.life:
@@ -402,3 +353,4 @@ class Enemy(Actor):
         self.animation.append(right)
         self.animation.append(back)
         self.animation.append(left)
+

@@ -10,3 +10,4 @@ class Node:
         self.reach = reach
         self.base_weight = base_weight
         self.value = value
+

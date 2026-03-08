@@ -1,163 +1,91 @@
-from typing import List
-
 import pygame
 import math
 
-from constants import BLANK_INT
-from game.bomb import Bomb
+from bomb import Bomb
 from enums.power_up_type import PowerUpType
-from game.Actor import Actor
-from game.explosion import Explosion
-from settings_template import TrainingSettingsTemplate
 
 
-class Player(Actor):
-    DEFAULT_POS_X = 4
-    DEFAULT_POS_Y = 4
-
+class Player:
+    pos_x = 4
+    pos_y = 4
     direction = 0
     frame = 0
     animation = []
     range = 3
+    bomb_limit = 1
+
     TILE_SIZE = 4
 
-    def __init__(
-        self, settings: TrainingSettingsTemplate = TrainingSettingsTemplate()
-    ):
-        super().__init__()
+    def __init__(self):
         self.life = True
 
-        pos_y, pos_x = settings.player_start_pos
-
-        if pos_x == BLANK_INT:
-            pos_x = self.DEFAULT_POS_X
-        if pos_y == BLANK_INT:
-            pos_y = self.DEFAULT_POS_Y
-
-        self.pos_y = pos_y
-        self.pos_x = pos_x
-
-    def is_player(self) -> bool:
-        return True
-
-    @property
-    def grid_x(self):
-        return int(self.pos_x / self.TILE_SIZE)
-
-    @property
-    def grid_y(self):
-        return int(self.pos_y / self.TILE_SIZE)
-
-    @property
-    def grid_position(self) -> tuple[int, int]:
-        return self.grid_y, self.grid_x
-
-    def move(
-        self, dx: int, dy: int, grid, enemies, power_ups
-    ) -> tuple[tuple[int, int], tuple[int, int]]:
-        current_grid_position = self.grid_position
+    def move(self, dx, dy, grid, enemys, power_ups):
         temp_x = int(self.pos_x / Player.TILE_SIZE)
         temp_y = int(self.pos_y / Player.TILE_SIZE)
-
-        # map = grid.copy()
-        grid_map = []
+        tile_map = []
 
         for i in range(len(grid)):
-            grid_map.append([])
+            tile_map.append([])
             for j in range(len(grid[i])):
-                grid_map[i].append(grid[i][j])
+                tile_map[i].append(grid[i][j])
 
-        for x in enemies:
+        for x in enemys:
             if x == self:
                 continue
             elif not x.life:
                 continue
             else:
-                grid_map[self.grid_x][self.grid_y] = 2
+                tile_pos_x = int(x.pos_x / Player.TILE_SIZE)
+                tile_pos_y = int(x.pos_y / Player.TILE_SIZE)
+                tile_map[tile_pos_x][tile_pos_y] = 2
 
         if self.pos_x % Player.TILE_SIZE != 0 and dx == 0:
             if self.pos_x % Player.TILE_SIZE == 1:
                 self.pos_x -= 1
             elif self.pos_x % Player.TILE_SIZE == 3:
                 self.pos_x += 1
-
-            new_grid_position = self.grid_position
-            return current_grid_position, new_grid_position
-
+            return
         if self.pos_y % Player.TILE_SIZE != 0 and dy == 0:
             if self.pos_y % Player.TILE_SIZE == 1:
                 self.pos_y -= 1
             elif self.pos_y % Player.TILE_SIZE == 3:
                 self.pos_y += 1
-
-            new_grid_position = self.grid_position
-            return current_grid_position, new_grid_position
+            return
 
         # right
         if dx == 1:
-            if grid_map[temp_x+1][temp_y] == 0:
+            if tile_map[temp_x + 1][temp_y] == 0:
                 self.pos_x += 1
         # left
         elif dx == -1:
             temp_x = math.ceil(self.pos_x / Player.TILE_SIZE)
-            if grid_map[temp_x-1][temp_y] == 0:
+            if tile_map[temp_x - 1][temp_y] == 0:
                 self.pos_x -= 1
 
         # bottom
         if dy == 1:
-            if grid_map[temp_x][temp_y+1] == 0:
+            if tile_map[temp_x][temp_y + 1] == 0:
                 self.pos_y += 1
         # top
         elif dy == -1:
             temp_y = math.ceil(self.pos_y / Player.TILE_SIZE)
-            if grid_map[temp_x][temp_y-1] == 0:
+            if tile_map[temp_x][temp_y - 1] == 0:
                 self.pos_y -= 1
 
         for pu in power_ups:
-            powerup_consumed = (
-                pu.pos_x == math.ceil(self.pos_x / Player.TILE_SIZE) and
-                pu.pos_y == math.ceil(self.pos_y / Player.TILE_SIZE)
-            )
-            if powerup_consumed:
+            if pu.pos_x == math.ceil(self.pos_x / Player.TILE_SIZE) \
+                    and pu.pos_y == math.ceil(self.pos_y / Player.TILE_SIZE):
                 self.consume_power_up(pu, power_ups)
 
-        new_grid_position = self.grid_position
-        return current_grid_position, new_grid_position
-
-    def plant_bomb(self, grid_map) -> Bomb:
-        b = Bomb(self.range, self.grid_x, self.grid_y, grid_map, self)
+    def plant_bomb(self, map):
+        b = Bomb(self.range, round(self.pos_x / Player.TILE_SIZE), round(self.pos_y / Player.TILE_SIZE), map, self)
         return b
 
-    def check_death(self, explosions: List[Explosion]) -> float:
-        """
-        :param explosions: ongoing explosions to check for death against
-        :return:
-        how close the player was to the nearest bomb, scaled from 0 to 1
-        1 means the player was right at the center of explosion
-        0 means the player was out of the range of the explosion
-        """
-        max_closeness = 0.0
-
-        for explosion in explosions:
-            for sector in explosion.sectors:
-                if self.grid_x == sector[0] and self.grid_y == sector[1]:
+    def check_death(self, exp):
+        for e in exp:
+            for s in e.sectors:
+                if int(self.pos_x / Player.TILE_SIZE) == s[0] and int(self.pos_y / Player.TILE_SIZE) == s[1]:
                     self.life = False
-                    distance_from_bomb = (
-                        abs(self.grid_x - explosion.source_x) +
-                        abs(self.grid_y - explosion.source_y)
-                    )
-
-                    closeness = 1.0 - distance_from_bomb / explosion.range
-                    """
-                    try:
-                        assert 1 >= closeness >= 0
-                    except AssertionError as e:
-                        print('INVALID_CLOSENESS:', closeness)
-                        raise e
-                    """
-                    max_closeness = max(max_closeness, closeness)
-
-        return max_closeness
 
     def consume_power_up(self, power_up, power_ups):
         if power_up.type == PowerUpType.BOMB:
@@ -227,8 +155,3 @@ class Player(Actor):
         self.animation.append(right)
         self.animation.append(back)
         self.animation.append(left)
-
-    def getGridCoords(self):
-        grid_x_pos = int(self.pos_x / self.TILE_SIZE)
-        grid_y_pos = int(self.pos_y / self.TILE_SIZE)
-        return (grid_x_pos, grid_y_pos)

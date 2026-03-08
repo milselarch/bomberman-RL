@@ -1,3 +1,4 @@
+
 class PowerUp:
 
     def __init__(self, x, y, power_type):
