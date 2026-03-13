@@ -10,19 +10,19 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(0, grid[1][2])
         self.assertEqual(0, grid[2][1])
 
-        l = len(grid)
+        length = len(grid)
 
-        self.assertEqual(0, grid[l - 2][1])
-        self.assertEqual(0, grid[l - 2][2])
-        self.assertEqual(0, grid[l - 3][1])
+        self.assertEqual(0, grid[length - 2][1])
+        self.assertEqual(0, grid[length - 2][2])
+        self.assertEqual(0, grid[length - 3][1])
 
-        self.assertEqual(0, grid[1][l - 2])
-        self.assertEqual(0, grid[1][l - 3])
-        self.assertEqual(0, grid[2][l - 2])
+        self.assertEqual(0, grid[1][length - 2])
+        self.assertEqual(0, grid[1][length - 3])
+        self.assertEqual(0, grid[2][length - 2])
 
-        self.assertEqual(0, grid[l - 2][l - 2])
-        self.assertEqual(0, grid[l - 2][l - 3])
-        self.assertEqual(0, grid[l - 3][l - 2])
+        self.assertEqual(0, grid[length - 2][length - 2])
+        self.assertEqual(0, grid[length - 2][length - 3])
+        self.assertEqual(0, grid[length - 3][length - 2])
 
 
 if __name__ == '__main__':

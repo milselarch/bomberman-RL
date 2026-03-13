@@ -2,6 +2,8 @@ import pygame
 import sys
 import random
 
+from pygame import Surface
+
 from enums.power_up_type import PowerUpType
 from player import Player
 from explosion import Explosion
@@ -20,7 +22,7 @@ bombs = []
 explosions = []
 power_ups = []
 
-GRID_BASE = [
+GRID_BASE: list[list[int]] = [
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],
@@ -38,7 +40,9 @@ GRID_BASE = [
 
 
 def game_init(
-    surface, path, player_alg, en1_alg, en2_alg, en3_alg, scale
+    surface: Surface, show_path: bool, player_alg: Algorithm,
+    en1_alg: Algorithm, en2_alg: Algorithm, en3_alg: Algorithm,
+    scale: int
 ):
     global font
     font = pygame.font.SysFont('Bebas', scale)
@@ -127,28 +131,51 @@ def game_init(
 
     power_ups_images = [power_up_bomb_img, power_up_fire_img]
 
-    main(surface, scale, path, terrain_images, bomb_images, explosion_images, power_ups_images)
+    main(surface, scale, show_path, terrain_images, bomb_images, explosion_images, power_ups_images)
 
 
-def draw(s, grid, tile_size, show_path, game_ended, terrain_images, bomb_images, explosion_images, power_ups_images):
+def draw(
+    s: Surface, grid: list[list[int]],
+    tile_size, show_path, game_ended, terrain_images,
+    bomb_images, explosion_images, power_ups_images
+):
     s.fill(BACKGROUND_COLOR)
 
     for i in range(len(grid)):
         for j in range(len(grid[i])):
-            s.blit(terrain_images[grid[i][j]], (i * tile_size, j * tile_size, tile_size, tile_size))
+            s.blit(
+                terrain_images[grid[i][j]],
+                (i * tile_size, j * tile_size, tile_size, tile_size)
+            )
 
     for pu in power_ups:
-        s.blit(power_ups_images[pu.type.value], (pu.pos_x * tile_size, pu.pos_y * tile_size, tile_size, tile_size))
+        s.blit(
+            power_ups_images[pu.type.value],
+            (pu.pos_x * tile_size, pu.pos_y * tile_size, tile_size, tile_size)
+        )
 
     for x in bombs:
-        s.blit(bomb_images[x.frame], (x.pos_x * tile_size, x.pos_y * tile_size, tile_size, tile_size))
+        s.blit(
+            bomb_images[x.frame],
+            (x.pos_x * tile_size, x.pos_y * tile_size, tile_size, tile_size)
+        )
 
     for y in explosions:
         for x in y.sectors:
-            s.blit(explosion_images[y.frame], (x[0] * tile_size, x[1] * tile_size, tile_size, tile_size))
+            s.blit(
+                explosion_images[y.frame],
+                (x[0] * tile_size, x[1] * tile_size, tile_size, tile_size)
+            )
+
     if player.life:
-        s.blit(player.animation[player.direction][player.frame],
-               (player.pos_x * (tile_size / 4), player.pos_y * (tile_size / 4), tile_size, tile_size))
+        s.blit(
+            player.animation[player.direction][player.frame],(
+                player.pos_x * (tile_size / 4),
+                player.pos_y * (tile_size / 4),
+                tile_size,
+                tile_size
+            )
+        )
     for en in enemy_list:
         if en.life:
             s.blit(en.animation[en.direction][en.frame],
